@@ -27,12 +27,23 @@ const fs = require('fs');
 const path = require('path');
 
 const argv = process.argv.slice(2);
-const file = argv.find(a => !a.startsWith('--'));
+let file = argv.find(a => !a.startsWith('--'));
 const flags = new Set(argv.filter(a => a.startsWith('--')));
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.split('=').slice(1).join('=') : d; };
 if (!file) { console.log('usage: node tools/import-players.js <players.csv> [--gender=female|male|all] [--emit=out.js] [--apply] [--new-leagues]'); process.exit(1); }
 const want = opt('gender', 'male');
-if (!fs.existsSync(file)) { console.log('no such file: ' + file + '\nThe CSV did not reach the sandbox — re-attach it (or copy it into /home/user) and run me again.'); process.exit(2); }
+if (file === '-') {                                        // read a pasted CSV from stdin
+  const tmp = path.join(require('os').tmpdir(), 'fc27-pasted-' + process.pid + '.csv');
+  fs.writeFileSync(tmp, fs.readFileSync(0, 'utf8'));
+  file = tmp;
+  console.log('(reading ' + fs.statSync(tmp).size + ' bytes from stdin → ' + tmp + ')');
+}
+if (!fs.existsSync(file)) {
+  console.log('no such file: ' + file);
+  console.log('the CSV has not reached the sandbox — re-attach it, paste it (node tools/import-players.js -),');
+  console.log('or commit it into the repo as players.csv and point me at that');
+  process.exit(2);
+}
 
 /* ---------- csv parse (quoted fields, embedded commas, CRLF) ---------- */
 function parseCSV(text) {
@@ -179,7 +190,7 @@ const dupes = out.length - new Set(out.map(p => (p.name + '|' + p.clubRaw).toLow
 const noNat = out.filter(p => p.nat === '???').reduce((a, p) => a.set(p.clubRaw || '?', (a.get(p.clubRaw || '?') || 0) + 1), new Map());
 
 console.log('file      ' + path.basename(file) + '  ·  ' + (rows.length - 1) + ' rows  ·  ' +
-  (idx.gender < 0 ? 'no gender column — every row is eligible' : dropped + ' women\'s rows excluded') +
+  (idx.gender < 0 ? 'no gender column — every row is eligible' : (dropped === 1 ? 'one women\'s row excluded' : dropped + ' women\'s rows excluded')) +
   '  ·  this game covers the men\'s divisions only');
 console.log('players   ' + out.length + ' kept (' + known.length + ' map onto existing clubs, ' + unknown.length + ' unknown)' + (dupes ? '  ·  ' + dupes + ' duplicate names folded' : ''));
 const posTally = out.reduce((a, p) => a.set(p.pos, (a.get(p.pos) || 0) + 1), new Map());

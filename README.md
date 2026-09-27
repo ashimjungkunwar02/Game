@@ -134,6 +134,9 @@ of `index.html` under a DOM stub:
 ```
 node tools/check.js       syntax of the inline script
 node tools/validate-db.js  the universe file: schema, uniqueness, ranges, play-off rules
+node tools/pool-coverage.js  how many real named players each of the 192 clubs carries — the
+                            gap a supplied export is meant to close (tools/import-players.js
+                            turns any FIFA/FBref-shaped CSV into db.js rows, men's only)
 node tools/simulate.js      plays scripted careers + a 36-config sweep (6 positions × 6 clubs
                             across 5 countries × 7 seasons) and checks invariants every week:
                             table integrity, games played, goals/game, apps, energy, fatigue,
