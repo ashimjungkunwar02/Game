@@ -444,7 +444,17 @@ const POSITIONS = {
   CM: { label:'Central Mid', w:{ pace:.14, shooting:.14, passing:.28, dribbling:.18, defending:.14, physical:.12 },
         hint:'Balanced. You get both creating and defensive prompts, so your rating is the most stable on the pitch.' },
   CB: { label:'Centre Back', w:{ pace:.14, shooting:.06, passing:.14, dribbling:.06, defending:.38, physical:.22 },
-        hint:'Defending caps the opposition chance count. Ratings skew low but a clean sheet is worth real trust.' }
+        hint:'Defending caps the opposition chance count. Ratings skew low but a clean sheet is worth real trust.' },
+  /* the database carries full-backs and holding midfielders — 827 of the imported players — so the
+     engine has to weight them too, or a takeover of a real left back throws and lands you nowhere.
+     The weights are the ones tools/import-players.js mean-locks against, so an imported LB's OVR
+     still reads as the overall his file row carries. */
+  LB: { label:'Left Back', w:{ pace:.24, shooting:.06, passing:.20, dribbling:.16, defending:.22, physical:.12 },
+        hint:'Pace gets you up and back, Passing wins you the overlaps. Expect duels and clean sheets over chances.' },
+  RB: { label:'Right Back', w:{ pace:.24, shooting:.06, passing:.20, dribbling:.16, defending:.22, physical:.12 },
+        hint:'Pace gets you up and back, Passing wins you the overlaps. Expect duels and clean sheets over chances.' },
+  CDM: { label:'Holding Mid', w:{ pace:.10, shooting:.08, passing:.24, dribbling:.14, defending:.28, physical:.16 },
+        hint:'Defending and Passing are the job. Your ratings sit low and steady, and a bad game is punished quietly rather than loudly.' }
 };
 
 /* Leagues: tier 1 = elite. `clubs` = "Name|Short|Strength|Fake" */
@@ -477,6 +487,8 @@ DB.leagues.forEach(L => {
                     fake: name, divName: D.name, cup: D.cup };
   }));
 });
+const CLUB_BY_CODE = {};
+Object.values(CLUBS).forEach(c => { CLUB_BY_CODE[c.code] = c; });
 const NATION = {};
 DB.nations.forEach(n => { const [code, name, str, cf] = n.split('|'); NATION[code] = { code, name, str: +str, confed: cf }; });
 const NATS = Object.keys(NATION);
@@ -557,13 +569,18 @@ function seedPool() {
     const nums = (at || '').split(',').map(x => +x);
     const realAttrs = nums.length === 6 && nums.every(x => x >= 15 && x <= 99)
       ? { pace:nums[0], shooting:nums[1], passing:nums[2], dribbling:nums[3], defending:nums[4], physical:nums[5] } : null;
-    const c = CLUBS[name + '_'] || Object.values(CLUBS).find(x => x.code === club);
+    const c = CLUB_BY_CODE[club];
     return { name, nat, pos, ovr: +ovr, age: +age, club: c ? c.name : club, clubCode: club,
              lg: c ? c.lg : 'ENG', div: c ? c.div : 0, str: c ? c.str : 70,
              attrs: realAttrs, value: 0, g: 0, a: 0, apps: 0 };
   }).filter(p => p.pos !== 'GK');
-  pool.forEach(p => { p.ovr = clamp(p.ovr - (p.age >= 33 ? (p.age - 32) : 0) + (p.age <= 19 ? 1 : 0), 50, 96);
-    p.value = playerValue(p); });
+  pool.forEach(p => {
+    /* veterans slip and prospects get a point for the armchair vote — but only where the game made
+       the number up. An imported row already carries the rating the source gave a 34-year-old, and
+       nudging it here would leave his OVR disagreeing with the six attributes he was locked to */
+    if (!p.attrs) p.ovr = clamp(p.ovr - (p.age >= 33 ? (p.age - 32) : 0) + (p.age <= 19 ? 1 : 0), 50, 96);
+    p.value = playerValue(p);
+  });
   return pool;
 }
 function playerValue(p) {
@@ -926,7 +943,10 @@ function blankState(p) {
                                        dribbling:R.attrs.dribbling, defending:R.attrs.defending, physical:R.attrs.physical }
                                  : attrsFromOvr(ovr, pos, R.name, age);
     pot = Math.max(ovr, ovr + (age <= 19 ? ri(6, 14) : age <= 22 ? ri(3, 8) : age <= 26 ? ri(0, 3) : 0));
-    wage = Math.round(clamp(Math.pow(clamp((ovr - 45) / 50, 0, 1), 3.3) * 3_600_000, 1_200, Math.min(780_000, WAGE_CAP)) / 100) * 100;
+    /* rating alone made every imported player at 78+ hit the ceiling — 3,125 real names turned that
+       into half the database earning Haaland money at Como. Quality times the size of the club. */
+    wage = Math.round(clamp(Math.pow(clamp((ovr - 50) / 46, 0, 1), 2.6) * 620_000 *
+      clamp(0.35 + (club.str - 58) / 40, 0.4, 1.25), 900, Math.min(780_000, WAGE_CAP)) / 100) * 100;
     fav = ovr >= club.str - 1 ? ri(78, 96) : ovr >= club.str - 6 ? ri(52, 74) : ri(24, 48);
     pop = clamp(Math.round((ovr - 55) * 2.1 + (age <= 20 ? 8 : 0)), 3, 99);
   } else {
@@ -969,7 +989,7 @@ function blankState(p) {
 }
 /* ---- derived values ---- */
 function ovrOf(attrs, pos) {
-  const w = POSITIONS[pos].w; let t = 0;
+  const w = (POSITIONS[pos] || POSITIONS.CM).w; let t = 0;
   for (const k of ATTRS) t += attrs[k] * w[k];
   return clamp(Math.round(t), 30, 99);
 }
@@ -1633,7 +1653,11 @@ function buildScript(m) {
     : m.role === 'sub' ? 'Your name is on the sheet at number ' + ri(16, 24) + '. The gaffer says: "Go and change it."'
     : 'Named in the eleven. Your first touch of the afternoon is watched by about nine thousand people and one scout.', minute: 2 });
 
-  const pool = PROMPTS.filter(p => p.roles.includes('*') || p.roles.includes(S.pos))
+  /* a full-back is asked to defend like a centre-half and a six like a centre-mid: the prompts are
+     written for the six play styles, so the nearest one is borrowed rather than leaving the match
+     with two generic lines */
+  const PPOS = { LB: 'CB', RB: 'CB', CDM: 'CM', GK: 'CB' }[S.pos] || S.pos;
+  const pool = PROMPTS.filter(p => p.roles.includes('*') || p.roles.includes(PPOS))
     .filter(p => !p.energy || S.energy <= p.energy);
   const prompts = [];
   if (m.role === 'reserve') {
@@ -4155,12 +4179,15 @@ function renderClubs() {
         <div class="text-[9px] text-slate-500">${c.div === 0 ? 'top flight' : 'second tier'}</div></div></div></button>`; }).join('');
 }
 function selClubName(n) { UI.create.clubName = n; renderClubs(); }
+/* a name goes into an inline onclick, so both quote styles have to survive it — the file uses
+   apostrophes freely (O'Brien, Jean-Lambert Evan's) and a double quote would close the attribute */
+function aEsc(x) { return String(x).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 function renderReal() {
   const q = ($('#rQ')?.value || '').trim().toLowerCase();
   const list = WORLD0.filter(p => !q || p.name.toLowerCase().includes(q) || p.club.toLowerCase().includes(q) || p.nat.toLowerCase().includes(q))
                       .sort((a, b) => b.ovr - a.ovr).slice(0, 60);
   $('#rCount').textContent = q ? `${list.length} match${list.length===1?'':'es'}${list.length===60?' (first 60)':''}` : `${WORLD0.length} players in the database — top ${list.length} by rating below`;
-  $('#rList').innerHTML = list.map(p => `<button class="opt !p-2 ${UI.create.real && UI.create.real.name===p.name?'!border-emerald-200/60':''}" onclick="selReal('${p.name.replace(/'/g,"\\'")}')">
+  $('#rList').innerHTML = list.map(p => `<button class="opt !p-2 ${UI.create.real && UI.create.real.name===p.name?'!border-emerald-200/60':''}" onclick="selReal('${aEsc(p.name)}')">
     <div class="flex items-center gap-2">${crest(p.club)}
       <div class="min-w-0 flex-1"><div class="text-[12px] font-bold truncate">${p.name}</div>
       <div class="text-[9.5px] text-slate-400 truncate">${p.nat} · ${p.pos} · ${p.age} · ${p.club}</div></div>
@@ -4169,14 +4196,14 @@ function renderReal() {
   const R = UI.create.real;
   $('#rPick').classList.toggle('hidden', !R);
   if (R) {
-    const club = Object.values(CLUBS).find(c => c.code === R.clubCode) || { name: R.club }, coach = coachOf(club.code), c2 = clubStyleOf(club);
+    const club = CLUB_BY_CODE[R.clubCode] || { name: R.club }, coach = coachOf(club.code), c2 = clubStyleOf(club);
     $('#rPick').innerHTML = `<div class="flex items-center gap-3">${crest(club.name,'!w-9 !h-9')}
       <div class="min-w-0 flex-1"><div class="text-[14px] font-bold font-disp uppercase tracking-wide truncate">${R.name}</div>
       <div class="text-[10.5px] text-slate-400">${(NATION[R.nat]||{}).name || R.nat} · ${R.pos} · ${R.age} · ${club.name}</div></div>
       <div class="text-right"><div class="text-[20px] font-bold fmt leading-none">${R.ovr}</div><div class="text-[9px] text-slate-500">OVR</div></div></div>
       <div class="grid grid-cols-3 gap-2 mt-3 text-center">
         ${ATTRS.map(k => `<div class="rounded-lg bg-white/5 py-1.5"><div class="text-[9px] text-slate-400 uppercase tracking-wide">${k}</div>
-        <div class="text-[14px] font-bold fmt">${attrsFromOvr(R.ovr, R.pos, R.name, R.age)[k]}</div></div>`).join('')}</div>
+        <div class="text-[14px] font-bold fmt">${(R.attrs || attrsFromOvr(R.ovr, R.pos, R.name, R.age))[k]}</div></div>`).join('')}</div>
       <div class="mt-3 text-[11.5px] text-slate-300 leading-snug">You take over a live career: ${money(Math.round(clamp(Math.pow(clamp((R.ovr-45)/50,0,1),3.3)*3.6e6,1200,780000)/100)*100)} a week, ${club.name}'s numbers, and ${coach.name}'s <b>${coach.style.n}</b> system${(NATION[R.nat]||{}).confed ? ' · ' + (NATION[R.nat]||{}).name + ' duty' : ''}.
       ${R.ovr < club.str - 4 ? 'You are rated below the squad — minutes will have to be earned.' : 'You are one of the best players there — the shirt is yours.'}</div>`;
   }
@@ -4193,7 +4220,7 @@ function startCareer(demo) {
   if (demo) opts = { name:'Ashim Kunwar', nat:'England', pos:'ST', age:17, clubName:'Arsenal', lg:'ENG', div:0, diff:'pro', mode:'own' };
   else if (UI.create.mode === 'real') {
     const R = UI.create.real; if (!R) { toast('Pick a player first', 'dn'); return; }
-    const club = Object.values(CLUBS).find(c => c.code === R.clubCode) || CLUBS[R.club];
+    const club = CLUB_BY_CODE[R.clubCode] || CLUBS[R.club];
     opts = { name: R.name, nat: R.nat, real: R, mode:'real', clubName: club ? club.name : R.club, diff:'elite', age: R.age, pos: R.pos };
   } else {
     const nm = (($('#cName')?.value || '').trim() || 'Ashim Kunwar').slice(0, 22);

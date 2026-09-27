@@ -116,8 +116,10 @@ leagues, rules or clubs. `node tools/validate-db.js` is the check afterwards.
 
 **Attributes → OVR → minutes.** Six attributes, each with a mechanical job (pace creates the
 chance, shooting converts it, passing unlocks the press, dribbling wins the one-v-one, defending
-and physical keep you on the pitch). OVR is position-weighted, so the same numbers make a different
-player at CB and at RW.
+and physical keep you on the pitch). OVR is position-weighted across the nine playable positions
+(ST, LW, RW, CAM, CM, CDM, LB, RB, CB), so the same numbers make a different player at CB and at RW —
+and so a takeover of a real left back is a career, not a crash. Goalkeepers are in the data and are
+deliberately not offered: the game has no keeper mechanics, only a clean sheet to defend.
 
 **Manager trust gates everything.** Trust 0–100 with hysteresis: 75 to walk into the XI, 65 to hold
 it, 40 to make the bench, 35 to fall out of the squad. A reserve gets zero prompts, a sub gets one,
@@ -193,6 +195,12 @@ node tools/validate-db.js  the universe file: schema, uniqueness, ranges, play-o
 node tools/pool-coverage.js  how many real named players each of the 192 clubs carries — the
                             gap a supplied export is meant to close (tools/import-players.js
                             turns any FIFA/FBref-shaped CSV into db.js rows, men's only)
+node tools/takeover.js      walks mode A exactly as a thumb does — setMode → search → selReal →
+                            startCareer — for one player per position plus a random spread (and
+                            `all` for every club's best man), then plays their first match: the
+                            shirt, the rating, the imported six, the wage, the fixture list and the
+                            ticker all have to agree, because a takeover that throws half-way through
+                            leaves a body on the HOME tab with no season behind it
 node tools/simulate.js      plays scripted careers + a 36-config sweep (6 positions × 6 clubs
                             across 5 countries × 7 seasons) and checks invariants every week:
                             table integrity, games played, goals/game, apps, energy, fatigue,
@@ -211,7 +219,7 @@ node tools/pageorder.js     walks index.html's <script> tags in document order a
                             world out of index.html and never added the tag back
 ```
 
-Current state: **DB valid (192 clubs, 3,125 players, 99 coaches, 150 nations)**, sweep clean across
+Current state: **DB valid (192 clubs, 3,125 players, 99 coaches, 150 nations)**, takeover OK, page order OK, sweep clean across
 36 careers / 11,592 simulated weeks, UI smoke clean, save round-trips — the state is ~650 KB of it
 and the stored save ~112 KB, because the pool is written back as a delta against `db.js` (only the
 players whose rating, age or season tally moved, plus regens) rather than 3,125 objects per write. Careers come out looking like careers — a 17-year-old at a Championship club fighting
@@ -223,6 +231,11 @@ competitions, a centre-half with 15 goals in eight seasons and a knee problem.
 - **Real numbers where the export has them.** An imported player keeps his six attributes; a generated
   one and the 18 uncovered clubs keep the modelled ones. The two coexist because the only contract the
   engine has with the data is `Name|NAT|POS|OVR|AGE|club`, and the attribute tail is optional.
+- **A takeover keeps its own numbers.** An imported row's OVR is the rating its six attributes add up
+  to — the file's overall on every row but the one already pinned at 99 — and the veteran/prospect
+  nudge the generator applies is skipped for real data. A wage is set by rating *and* the size of the
+  club, because 3,125 real names turned "everyone over 78 earns the ceiling" into half the database on
+  Haaland money at Como.
 - **The men's game only.** No women's competitions and no mixed pools: the universe is the men's
   divisions, and any supplied dataset is filtered to them on the way in (`tools/import-players.js`
   drops the rows a file marks as women's and keeps everything else, blank gender included).

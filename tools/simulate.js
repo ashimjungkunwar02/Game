@@ -118,7 +118,10 @@ function invariants() {
      is shorter than the week you are on. The engine clamps and closes the season on the next
      tick, so this is a wobble, not a break — but we count it, and a real run-away still shows
      up as the guard running out. */
-  if (S.week > schedule().length + 1) { st_wobble[0]++; if (S.week > schedule().length + 14) throw new Error('week lost ' + S.week + '/' + schedule().length); }
+  /* the counter belongs to the caller — playWeek cannot see sweep()'s locals, which is why this
+     line only blew up on the one config that ever tripped the wobble */
+  if (S.week > schedule().length + 1) { if (globalThis.__w) globalThis.__w[0]++;
+    if (S.week > schedule().length + 14) throw new Error('week lost ' + S.week + '/' + schedule().length); }
   if (!isFinite(S.fatigue) || S.fatigue < 0 || S.fatigue > 100) throw new Error('fatigue range ' + S.fatigue);
   if (S.injury && !(S.injury.left >= 0)) throw new Error('injury counter');
   if (Object.keys(S.table).length !== roster(S.club.lg, S.div).length) throw new Error('table size drift');

@@ -138,9 +138,11 @@ const LOWER = /^(de|del|la|le|van|von|di|da|dos|das|der|den|ter|ten|bin|ibn|al|e
 function displayName(r) {
   const cn = String(idx.name >= 0 ? r[idx.name] || '' : '').replace(/\s+/g, ' ').trim();
   const fn = String(idx.first >= 0 ? r[idx.first] || '' : '').trim();
-  const ln = String(idx.last >= 0 ? r[idx.last] || '' : '').trim().split(' ')[0] || '';
+  /* the whole surname, not its first word: "van Dijk" and "dos S. Magalhães" are surnames, and
+     cutting them at the particle is how the database ended up signing for "Virgil van" */
+  const ln = String(idx.last >= 0 ? r[idx.last] || '' : '').replace(/\s+/g, ' ').trim();
   if (cn && /\s/.test(cn)) return prettyName(cn);
-  if (cn && fn && ln) return prettyName(fn + ' ' + ln);
+  if (cn && fn && ln) return prettyName(cn.length > fn.length ? cn : fn + ' ' + ln);
   if (fn && ln) return prettyName(fn + ' ' + ln);
   return prettyName(cn || fn || ln);
 }
@@ -338,7 +340,10 @@ for (const r of body) {
     A = {}; for (const k in raw) A[k] = clamp(raw[k] + shift, 20, 99);
     if (Math.abs(myOvr(A, pos) - ovr) > 1) offCount++;
   }
-  const o = clamp(ovr, 40, 99);   // the file's overall: every value model in the game is calibrated on it
+  /* the number on the row is what his six add up to — which is the file's overall on every row except
+     the ones already pinned at 99, where the shift had nowhere to go. Better one player 2 points
+     short than a career whose OVR and attributes disagree the moment the game recalculates */
+  const o = clamp(A ? myOvr(A, pos) : ovr, 40, 99);
 
   const age = ageOf(r) || (o >= 85 ? 27 : 24);
   const nm = displayName(r);
@@ -385,7 +390,7 @@ const nats = kept.filter(p => p.nat === '???');
 if (nats.length) console.log('note      ' + nats.length + ' rows had an unrecognised nationality — they are skipped by --apply');
 const squadSizes = [...byMine.values()].map(l => l.length).sort((a, b) => a - b);
 console.log('squads    min ' + squadSizes[0] + ' · median ' + squadSizes[Math.floor(squadSizes.length / 2)] + ' · max ' + squadSizes[squadSizes.length - 1]);
-console.log('attrs     ' + (offCount ? offCount + ' rows could not be mean-locked inside 1 point of the file overall (clamped at the ceiling)' : 'every row sits within 1 point of its own overall after mean-locking'));
+console.log('attrs     ' + (offCount ? offCount + ' row(s) had an attribute pinned at 99 and keep the rating their six actually add up to' : 'every row sits within 1 point of its own overall after mean-locking'));
 if (flags.has('--strengths')) {
   console.log('\nclub strength: my db value vs the average of the imported best eleven');
   const rowsS = [];
