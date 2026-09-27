@@ -124,7 +124,16 @@ function invariants() {
     if (S.week > schedule().length + 14) throw new Error('week lost ' + S.week + '/' + schedule().length); }
   if (!isFinite(S.fatigue) || S.fatigue < 0 || S.fatigue > 100) throw new Error('fatigue range ' + S.fatigue);
   if (S.injury && !(S.injury.left >= 0)) throw new Error('injury counter');
+  /* The engine syncs its tables with division membership once a week, at the top of the week. A
+     rollover in the last tick moved the membership (asymmetric promo/relegation counts do it: three
+     down, two up) without rebuilding this career's table yet, so a bare comparison here catches the
+     boundary rather than a break — that is what "table size drift" was, once per sweep, in whichever
+     config happened to land on the seam. Run the same sync the engine runs, then insist on agreement:
+     a genuinely broken table still fails, because ensureTables is exactly what fixes it. */
+  ensureTables();
   if (Object.keys(S.table).length !== roster(S.club.lg, S.div).length) throw new Error('table size drift');
+  const _miss = Object.keys(S.table).filter(id => !roster(S.club.lg, S.div).some(c => c.id === +id || c.id === id));
+  if (_miss.length) throw new Error('table holds ' + _miss.length + ' club(s) outside the division');
   if (S.growth && S.growth.used > S.growth.budget + 4) throw new Error('growth budget blown');
   if (marketValue() > 245e6) throw new Error('value too hot');
   ATTRS.forEach(k => { if (S.attrs[k] < 20 || S.attrs[k] > 99) throw new Error('attr range ' + k); });

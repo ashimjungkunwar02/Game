@@ -33,7 +33,43 @@ function makeEl() {
   });
   return p;
 }
-global.document = { getElementById: () => makeEl(), createElement: () => makeEl(), querySelector: () => makeEl(),
+/* One element per id, remembering what the page did to it: the handler boot() attached, the classes
+   it toggled, the HTML it wrote. Without this the test drives engine functions and never the
+   controls — which is how "Take Over A Real Career" shipped wired to nothing while every test
+   in the repo stayed green. */
+const els = new Map();
+function elFor(id) {
+  const st = { __id: id };
+  const target = function () {}; let p;
+  p = new Proxy(target, {
+    get(t, k) {
+      if (k === Symbol.toPrimitive || k === Symbol.iterator) return () => 0;
+      if (k === 'classList') return {
+        add: c => (st.cls = st.cls || new Set()).add(c),
+        remove: c => (st.cls = st.cls || new Set()).delete(c),
+        toggle(c, on) { st.cls = st.cls || new Set(); if (on === undefined) { if (st.cls.has(c)) st.cls.delete(c); else st.cls.add(c); } else if (on) st.cls.add(c); else st.cls.delete(c); },
+        contains: c => !!(st.cls && st.cls.has(c))
+      };
+      if (k === 'style' || k === 'dataset') return st[k] || (st[k] = {});
+      if (k === 'children') return st.children || [];
+      if (k === 'parentElement' || k === 'parentNode') return p;
+      if (k === 'value') return st.value !== undefined ? st.value : '';
+      if (k === 'innerHTML' || k === 'textContent') return st[k] || '';
+      if (k === 'length') return 0;
+      if (k in st) return st[k];
+      return p;
+    },
+    set(t, k, v) { st[k] = v; return true; },
+    apply: () => p
+  });
+  return p;
+}
+global.document = { getElementById(id) { if (!els.has(id)) els.set(id, elFor(id)); return els.get(id); },
+  createElement: () => makeEl(),
+  /* the page's $() is document.querySelector, so '#id' has to resolve to the SAME remembered
+     element that getElementById hands back — otherwise a class toggle is written to one object and
+     read from another, and the test sees a control that never reacted */
+  querySelector(sel) { const h = /^#([A-Za-z0-9_.-]+)$/.exec(sel || ''); return h ? this.getElementById(h[1]) : makeEl(); },
   querySelectorAll: () => [], addEventListener() {}, body: makeEl(), readyState: 'complete', documentElement: makeEl() };
 const FC27_DB = new Function('window', dbjs + String.fromCharCode(10) + 'return window.FC27_DB;')({});
 global.window = { matchMedia: () => ({ matches: true, addEventListener() {} }), location: { href: '' }, addEventListener() {}, FC27_DB };
@@ -48,6 +84,31 @@ const MODE = process.argv.includes('all') ? 'all' : 'sample';
 
 const BODY = `
 const NL = String.fromCharCode(10);
+function tap(id) {
+  const e = document.getElementById(id);
+  const h = e.onclick || e.onchange || e.oninput;
+  if (typeof h !== 'function') throw new Error('#' + id + ' has no handler to tap');
+  h.call(e);
+}
+const hidden = id => document.getElementById(id).classList.contains('hidden');
+/* title → mode A → search → pick a name → start, exactly as a thumb does it */
+function clickIntoRealMode(name) {
+  S = null; UI.modal = null; backToTitle();
+  if (!UI.create) UI.create = { mode: 'own', real: null };
+  UI.create.real = null;
+  tap('tReal');
+  if (!hidden('title')) throw new Error('tapping the mode-A button did not leave the title screen');
+  if (hidden('create')) throw new Error('the create sheet never opened');
+  if (UI.create.mode !== 'real') throw new Error('mode did not switch to a real takeover');
+  document.getElementById('rQ').value = name;
+  renderReal();
+  const list = document.getElementById('rList').innerHTML || '';
+  if (list && list.indexOf(name) < 0) throw new Error('the search box did not surface ' + name);
+  selReal(name);
+  const pick = document.getElementById('rPick').innerHTML || '';
+  if (pick.indexOf(name) < 0) throw new Error('the pick panel never showed ' + name);
+  tap('cStart');
+}
 const rows = DB.players.map(function (r) { return r.split('|'); });
 const byPos = {};
 rows.forEach(function (r) { (byPos[r[2]] = byPos[r[2]] || []).push(r); });
@@ -75,13 +136,9 @@ targets.forEach(function (r) {
   let mm = null, played = 'no match';
   try {
     UI.create = { mode: 'own', pos: 'ST', lg: 'ENG', div: 0, clubName: 'Arsenal', diff: 'pro', age: 17, real: null };
-    UI.tab = 'home'; UI.modal = null; S = null;
-    setMode('real');
-    globalThis.__val = ''; renderReal();
-    selReal(want.name);
+    UI.tab = 'home'; UI.modal = null;
+    clickIntoRealMode(want.name);
     if (!UI.create.real) errs.push('selecting the player did not stick');
-    globalThis.__val = want.name; renderReal();       // the search field + panel with a real pick in it
-    startCareer(false);
   } catch (e) { errs.push('threw during takeover: ' + e.message); }
   if (!S) { lines.push(name.padEnd(24) + '✗ never landed — no state was created' + (errs.length ? ' (' + errs[0] + ')' : '')); bad++; return; }
   const R = UI.create.real || {};

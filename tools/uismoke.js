@@ -30,13 +30,30 @@ function makeEl() {
       if (k === 'children') return [];
       if (k === 'value') return 'Asha Kunwar';
       if (k === 'length') return 0;
+      if (k === '__html') return t.__html;
       return p;
     },
-    set: () => true,
+    /* remember what a render wrote, so the output can be read back and inspected — a panel that
+       prints "undefined" is a broken screen whatever the code around it does */
+    set(t, k, v) { if (k === 'innerHTML') t.__html = String(v); return true; },
     apply: () => p
   });
   return p;
 }
+/* Read back what a render wrote and look for the words a broken panel leaks. The scan lives out
+   here, next to the stub, and is hung on globalThis because the game code runs inside a strict-mode
+   function that can only see globals. */
+const dirty = [];
+global.scanHtml = function (label) {
+  const h = el.__html || '';
+  if (!h || h.length < 12) return;                        /* nothing rendered through this stub path */
+  const flat = h.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  /* report every leak, not just the first: one panel printing "undefined" twice is two bugs */
+  const hits = [...flat.matchAll(/undefined|NaN/g)].slice(0, 4).map(x =>
+    '…' + flat.slice(Math.max(0, x.index - 30), x.index + 42).trim() + '…');
+  if (hits.length) dirty.push(label + ': ' + hits.join(' | '));
+};
+global.dirty = dirty;
 const store = new Map();
 const el = makeEl();
 global.document = new Proxy({}, {
@@ -161,9 +178,9 @@ function playSome(n, cfg) { for (let i = 0; i < n; i++) { try { playWeek(cfg); }
 newCareer({ pos:'ST', club:'Manchester City', wide:true, smart:true });
 playSome(240, { wide:true, smart:true });
 
-for (const t of ['home','dev','career','life','hub','team']) tryIt('tab ' + t, () => { go(t); renderAll(); });
+for (const t of ['home','dev','career','life','hub','team']) tryIt('tab ' + t, () => { go(t); renderAll(); scanHtml('tab ' + t); });
 for (const k of ['match','report','event','messages','standings','training','log','renew','loan','invest','review','freeagent','retire','epitaph','presser','awayday','medical','tourney','manager','settings','social','dev'])
-  tryIt('modal ' + k, () => { UI.modal = k; renderModal(); UI.modal = null; });
+  tryIt('modal ' + k, () => { UI.modal = k; renderModal(); scanHtml('modal ' + k); UI.modal = null; });
 
 const acts = [
   ['restWeek', () => restWeek()],
@@ -223,6 +240,7 @@ const acts = [
 ];
 for (const [label, fn] of acts) tryIt(label, fn);
 tryIt('career-after-retire', () => renderAll());
+if (dirty.length) { console.log('UNRENDERED VALUES · ' + dirty.length + ' panel(s) print undefined/NaN'); [...new Set(dirty)].slice(0, 12).forEach(d => console.log('  ✗ ' + d)); process.exitCode = 1; }
 console.log('UI SMOKE: ' + fail.length + ' broken references, ' + stateful.length + ' state-dependent');
 if (fail.length) console.log(fail.map(x => '  FAIL ' + x).join(String.fromCharCode(10)));
 if (process.env.V) console.log(stateful.map(x => '  note ' + x).join(String.fromCharCode(10)));

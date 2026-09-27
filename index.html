@@ -2675,7 +2675,7 @@ function endSeason() {
 /* a shareable block of text — what you would paste on the feed */
 function seasonCard(s) {
   const L = ['⚽ FOOTBALL CAREER 27 — SEASON ' + (2026 + s.seasonNo - 1) + '/' + String(2026 + s.seasonNo).slice(-2),
-    s.name + ' (' + S.natName + ') · ' + s.age + ' · ' + S.pos + ' · ' + S.club.name,
+    S.name + ' (' + S.natName + ') · ' + (s.age != null ? s.age : S.age) + ' · ' + S.pos + ' · ' + (s.club || S.club.name),
     s.divName + ': ' + ordinal(s.pos) + ' of ' + s.size + ' · ' + s.pts + ' pts',
     'Apps ' + s.apps + ' · ' + s.goals + 'G ' + s.assists + 'A · ' + s.rating + ' avg rating',
     'OVR ' + S.ovr + ' (POT ' + S.pot + ') · Value ' + money(s.value) + ' · Wage ' + money(S.contract.wage) + '/w',
@@ -3459,7 +3459,7 @@ function renderModal() {
     html = modalShell('Career Feed', 'Every number that moved, and why',
       S.log.length ? S.log.slice(0, 60).map(l => `<div class="logline">
         <span class="text-[9.5px] text-slate-500 font-disp">S${l.s} W${l.w}</span> ${l.tag?`<span class="chip !text-[8px]" style="background:rgba(255,255,255,.1);color:#cfe0f5">${l.tag}</span>`:''}
-        <b>${l.label}</b> <span class="fmt" style="color:${typeof l.val==='number'&&l.val>=0?'#a9efc4':l.kind==='money'?'#e8f1ff':'#ef8686'}">${typeof l.val==='number'?(l.kind==='money'?money(l.val):(l.val>0?'+':'')+l.val):l.val}</span></div>`).join('')
+        ${esc(l.t)}${l.v == null ? '' : ` <span class="fmt font-bold" style="color:${typeof l.v==='number'&&l.v>=0?'#a9efc4':l.kind==='money'?'#e8f1ff':'#ef8686'}">${typeof l.v==='number'?(l.kind==='money'?money(l.v):(l.v>0?'+':'')+l.v):esc(l.v)}</span>`}</div>`).join('')
         : '<div class="text-[12px] text-slate-400 text-center py-3">Nothing yet.</div>');
   }
 
@@ -4254,7 +4254,10 @@ function boot() {
   initCreate(); buildDock();
   const saved = load();
   $('#tLoad').style.opacity = saved ? '1' : '.4';
-  $('#tNew').onclick = () => { $('#title').classList.add('hidden'); const c = $('#create'); c.classList.remove('hidden'); };
+  const openCreate = mode => { $('#title').classList.add('hidden'); const c = $('#create');
+    c.classList.remove('hidden'); c.scrollTop = 0; setMode(mode); };
+  $('#tNew').onclick = () => openCreate('own');
+  $('#tReal').onclick = () => openCreate('real');   /* wired to nothing before this: mode A never opened */
   $('#cStart').onclick = () => startCareer(false);
   $('#tDemo').onclick = () => startCareer(true);
   $('#tLoad').onclick = () => {

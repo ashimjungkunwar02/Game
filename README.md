@@ -195,9 +195,15 @@ node tools/validate-db.js  the universe file: schema, uniqueness, ranges, play-o
 node tools/pool-coverage.js  how many real named players each of the 192 clubs carries — the
                             gap a supplied export is meant to close (tools/import-players.js
                             turns any FIFA/FBref-shaped CSV into db.js rows, men's only)
-node tools/takeover.js      walks mode A exactly as a thumb does — setMode → search → selReal →
-                            startCareer — for one player per position plus a random spread (and
-                            `all` for every club's best man), then plays their first match: the
+node tools/wiring.js        reads the page as a list of things a thumb can touch: every button,
+                            input and select in index.html must carry a handler or be touched by the
+                            script, and every function named in an inline handler must exist. A
+                            feature can be perfectly implemented and still do nothing, because the
+                            tap was never wired — that is how mode A shipped with a dead button while
+                            every other tool stayed green, since they all call the functions directly
+node tools/takeover.js      walks mode A through the controls themselves — tap #tReal, type in #rQ,
+                            pick a name, tap #cStart — for one player per position plus a random
+                            spread (and `all` for every club's best man), then plays their first match: the
                             shirt, the rating, the imported six, the wage, the fixture list and the
                             ticker all have to agree, because a takeover that throws half-way through
                             leaves a body on the HOME tab with no season behind it
@@ -206,7 +212,10 @@ node tools/simulate.js      plays scripted careers + a 36-config sweep (6 positi
                             table integrity, games played, goals/game, apps, energy, fatigue,
                             OVR/trust ranges, then a save round-trip
 node tools/uismoke.js       renders every tab and every modal and calls ~50 handlers, so a
-                            click that would throw in a browser throws here instead
+                            click that would throw in a browser throws here instead; it also reads
+                            back the HTML each render wrote and fails on a panel printing
+                            `undefined`/`NaN`, which is how the Career Feed's key-name mismatch —
+                            rows that all read "S1 W0 undefined undefined" — would be caught cold
 node tools/matchflow.js     plays five matches beat by beat and reads the ticker back: the sheet must
                             say 0-0 at kick-off, move one goal at a time, spread its goals across the
                             90 rather than dumping them at one end, and the full-time line must agree
@@ -219,7 +228,11 @@ node tools/pageorder.js     walks index.html's <script> tags in document order a
                             world out of index.html and never added the tag back
 ```
 
-Current state: **DB valid (192 clubs, 3,125 players, 99 coaches, 150 nations)**, takeover OK, page order OK, sweep clean across
+Current state: **DB valid (192 clubs, 3,126 players, 99 coaches, 80 nations)**, takeover OK through the
+buttons, wiring OK, page order OK, sweep clean across 36 careers / 11,592 simulated weeks, UI smoke clean,
+save round-trips — the state is ~632 KB of it and the stored save ~104 KB, because the pool is written back
+as a delta against `db.js` (only the players whose rating, age or season tally moved, plus regens) rather
+than 3,126 objects per write.
 36 careers / 11,592 simulated weeks, UI smoke clean, save round-trips — the state is ~650 KB of it
 and the stored save ~112 KB, because the pool is written back as a delta against `db.js` (only the
 players whose rating, age or season tally moved, plus regens) rather than 3,125 objects per write. Careers come out looking like careers — a 17-year-old at a Championship club fighting
