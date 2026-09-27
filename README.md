@@ -53,7 +53,8 @@ Shipped: **5 leagues × 2 divisions (192 clubs, 10 divisions), 3,125 real player
 with the six attributes the export carried — 99 real coaches with a tactical identity, 150 national
 teams, per-position attribute templates, and a real international calendar.** Named first XIs exist
 for 174 of the 192 clubs; the other 18 (mostly second-tier sides the export does not list) are filled
-by the generator, which is what the game has always done. Regens are generated from name parts as seasons go by, so new names keep arriving.
+by the generator, which is what the game has always done. Regens are generated from name parts as
+seasons go by, so new names keep arriving.
 Nothing in the engine is hard-coded to a club or a league, so an out-of-date file cannot silently
 half-work: `node tools/validate-db.js` reads the dataset the way the engine does and fails loudly on
 a broken one — division `size` must equal the number of club rows, codes must be unique, every
