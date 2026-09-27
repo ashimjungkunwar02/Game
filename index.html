@@ -1,0 +1,2685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Football Career 27</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1424'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23a9efc4' stroke-width='2'/%3E%3Cpath d='M16 9l4 3-1.5 5h-5L12 12z' fill='%23a9efc4'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#060b16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FC27">
+<meta name="description" content="A deep, text-driven football player career mode. Rise from 17-year-old prospect to Ballon d'Or.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  if (window.tailwind) {
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            disp: ['"Chakra Petch"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            body: ['"Barlow Semi Condensed"', 'ui-sans-serif', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  }
+</script>
+<style>
+  :root {
+    --ink: #060b16;
+    --glass: linear-gradient(180deg, rgba(21,35,60,.72), rgba(8,15,29,.62));
+    --glass-2: linear-gradient(180deg, rgba(28,45,74,.66), rgba(10,18,34,.58));
+    --edge: rgba(150,196,255,.18);
+    --edge-soft: rgba(150,196,255,.10);
+    --mint: #a9efc4;
+    --coral: #ef8686;
+    --gold: #f4d67f;
+    --txt-dim: #9fb3cd;
+  }
+
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: #eaf1fb;
+    font-family: 'Barlow Semi Condensed', ui-sans-serif, system-ui, sans-serif;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-font-smoothing: antialiased;
+  }
+  #stage {
+    position: fixed; inset: 0; overflow: hidden;
+    background:
+      radial-gradient(120% 70% at 18% 6%, rgba(84,140,220,.30), transparent 60%),
+      radial-gradient(110% 60% at 88% 4%, rgba(60,110,190,.26), transparent 58%),
+      radial-gradient(70% 40% at 50% -10%, rgba(210,230,255,.20), transparent 70%),
+      linear-gradient(180deg, #070f1e 0%, #0a1729 34%, #08131f 52%, #07130e 70%, #0a2113 84%, #071a0f 100%);
+  }
+  /* pitch + stands, pure CSS, no image dependency */
+  #stage::before {
+    content: ''; position: absolute; left: -10%; right: -10%; top: 0; height: 46%;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 3px, transparent 3px 34px),
+      radial-gradient(60% 100% at 50% 0%, rgba(160,200,255,.14), transparent 70%);
+    opacity: .8; pointer-events: none;
+  }
+  #stage::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 42%;
+    background:
+      repeating-linear-gradient(180deg, rgba(255,255,255,.045) 0 26px, transparent 26px 52px),
+      radial-gradient(90% 70% at 50% 120%, rgba(58,150,80,.55), rgba(10,40,22,.05) 70%, transparent 78%);
+    pointer-events: none;
+  }
+  .font-disp { font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif; }
+  .flood { position:absolute; width:170px; height:170px; border-radius:50%; filter:blur(34px);
+  background:rgba(200,225,255,.20); pointer-events:none; }
+  .flood.l { top:-46px; left:-52px } .flood.r { top:-40px; right:-56px }
+
+  .shell {
+    position: relative; z-index: 2; height: 100%; margin: 0 auto;
+    max-width: 448px; display: flex; flex-direction: column;
+  }
+  @media (min-width: 520px) {
+    .shell { border-left: 1px solid rgba(255,255,255,.06); border-right: 1px solid rgba(255,255,255,.06); }
+    #stage { background-color: #04070d; }
+  }
+
+  .scroll {
+    flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 0 12px calc(96px + env(safe-area-inset-bottom));
+    scrollbar-width: none;
+  }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  .card {
+    background: var(--glass); border: 1px solid var(--edge); border-radius: 20px;
+    backdrop-filter: blur(12px) saturate(120%); -webkit-backdrop-filter: blur(12px) saturate(120%);
+    box-shadow: 0 10px 26px -14px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.07);
+  }
+  .card.flat { background: var(--glass-2); }
+  .ctitle {
+    font-family: 'Chakra Petch', ui-sans-serif; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .16em; font-size: 12px; color: #f2f7ff; text-align: center;
+  }
+  .clabel {
+    font-family: 'Chakra Petch', ui-sans-serif; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .13em; font-size: 9.5px; color: var(--txt-dim);
+  }
+  .pill {
+    border-radius: 999px; padding: 7px 10px; font-weight: 700; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; gap: 6px; line-height: 1;
+    font-family: 'Chakra Petch', ui-sans-serif; letter-spacing: .02em;
+  }
+  .pill.pos { background: var(--mint); color: #06281a; box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+  .pill.neg { background: var(--coral); color: #37090c; box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+  .pill.neu { background: #eef3fa; color: #0c1524; }
+  .pill.dim { background: rgba(255,255,255,.10); color: #dbe6f6; border: 1px solid var(--edge-soft); }
+  .pill.gold { background: var(--gold); color: #33260a; }
+
+  .btn {
+    font-family: 'Chakra Petch', ui-sans-serif; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .14em; font-size: 12px; border-radius: 999px; padding: 13px 18px;
+    border: 1px solid rgba(233,242,255,.55); background: rgba(255,255,255,.07); color: #f4f8ff;
+    transition: transform .12s ease, background .18s ease, opacity .18s ease; width: 100%;
+    backdrop-filter: blur(6px);
+  }
+  .btn:active { transform: scale(.975); background: rgba(255,255,255,.16); }
+  .btn.solid { background: #f4f8ff; color: #08111f; border-color: #f4f8ff; }
+  .btn.solid:active { background: #d9e6f7; }
+  .btn.danger { border-color: rgba(239,134,134,.75); color: #ffd9d9; background: rgba(239,134,134,.10); }
+  .btn.muted { opacity: .38; pointer-events: none; }
+  .btn.tiny { padding: 7px 11px; font-size: 10px; letter-spacing: .1em; }
+  .btn[disabled] { opacity: .35; pointer-events: none; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; border-radius: 999px;
+    font-family: 'Chakra Petch', ui-sans-serif; font-weight: 700; font-size: 9px;
+    letter-spacing: .1em; text-transform: uppercase; padding: 4px 8px;
+  }
+  .bar { height: 7px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .bar.tall { height: 10px; }
+
+  /* bottom nav, mirroring the reference: active tab is a raised white tile */
+  nav.dock {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(6,11,22,.30), rgba(4,8,16,.92) 55%);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(150,196,255,.10);
+  }
+  .dock button {
+    border-radius: 16px; padding: 8px 2px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: #a9bdd8; background: rgba(255,255,255,.05); border: 1px solid transparent;
+    font-family: 'Chakra Petch', ui-sans-serif; font-weight: 700; font-size: 8.5px;
+    letter-spacing: .11em; text-transform: uppercase; transition: transform .14s ease, background .18s ease;
+  }
+  .dock button svg { width: 20px; height: 20px; }
+  .dock button.on {
+    background: #f4f8ff; color: #0a1424; transform: translateY(-6px);
+    box-shadow: 0 12px 20px -8px rgba(0,0,0,.75);
+  }
+  .dock button:active { transform: scale(.94); }
+  .dock button.on:active { transform: translateY(-6px) scale(.94); }
+
+  .tabwrap { display: none; }
+  .tabwrap.on { display: block; animation: fade .28s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes pop { 0% { transform: scale(.9); opacity: 0 } 60% { transform: scale(1.03) } 100% { transform: scale(1); opacity: 1 } }
+
+  .crest {
+    width: 20px; height: 24px; border-radius: 4px 4px 10px 10px; flex: none;
+    clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%);
+  }
+  .crest.big { width: 26px; height: 31px; }
+
+  .role { font-family:'Chakra Petch',ui-sans-serif; font-weight:700; font-size:9px; letter-spacing:.12em; text-transform:uppercase; padding:4px 9px; border-radius:999px }
+  .role.starter { background: var(--mint); color:#07281a } .role.sub { background:#f2d98a; color:#332708 } .role.reserve { background:var(--coral); color:#38090c } .role.injured { background:#c9b6f5; color:#231440 } .role.susp { background:#8fb8e8; color:#0b1e35 }
+
+  .fmt { font-variant-numeric: tabular-nums; }
+  .divide-soft > * + * { border-top: 1px solid var(--edge-soft); }
+  .no-sel { user-select: none; -webkit-user-select: none; }
+
+  /* modal / overlay */
+  .veil {
+    position: absolute; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(3,7,14,.72); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+    animation: fade .2s ease;
+  }
+  .sheet { width: 100%; max-height: calc(100% - 12px); overflow-y: auto; scrollbar-width: none; animation: rise .3s cubic-bezier(.2,.8,.2,1); }
+  .sheet::-webkit-scrollbar { display: none; }
+
+  /* match ticker */
+  .tick { animation: rise .35s ease; }
+  .tick .ln { border-left: 2px solid rgba(150,196,255,.25); }
+  .opt {
+    width: 100%; text-align: left; border-radius: 14px; padding: 11px 12px; border: 1px solid var(--edge);
+    background: linear-gradient(180deg, rgba(30,48,78,.7), rgba(12,22,40,.6)); transition: transform .12s ease;
+  }
+  .opt:active { transform: scale(.985); background: rgba(58,88,132,.55); }
+  .dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 11px; font-family:'Chakra Petch',ui-sans-serif; }
+
+  #toast { position: absolute; left: 12px; right: 12px; top: calc(8px + env(safe-area-inset-top)); z-index: 90; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+  .toast { animation: pop .3s ease; border-radius: 14px; padding: 9px 11px; font-size: 12px; font-weight: 600;
+    background: rgba(10,20,36,.94); border: 1px solid var(--edge); box-shadow: 0 10px 24px -12px #000; }
+  .toast.up { border-color: rgba(169,239,196,.5) } .toast.dn { border-color: rgba(239,134,134,.5) }
+
+  .num-in { display: inline-block; animation: pop .35s ease; }
+  input.fld, select.fld {
+    width: 100%; border-radius: 12px; padding: 11px 12px; background: rgba(255,255,255,.07);
+    border: 1px solid var(--edge); color: #f2f7ff; font-size: 15px; font-family: inherit; outline: none;
+  }
+  input.fld:focus, select.fld:focus { border-color: rgba(169,239,196,.6); background: rgba(255,255,255,.11); }
+  .seg { display: grid; gap: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--edge); border-radius: 999px; padding: 5px; }
+  .seg button { border-radius: 999px; padding: 8px 4px; font-family:'Chakra Petch',ui-sans-serif; font-weight:700; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#a9bdd8 }
+  .seg button.on { background: #eef3fa; color: #0c1524 }
+  .logline { font-size: 12.5px; line-height: 1.4; padding: 7px 0; border-bottom: 1px solid var(--edge-soft) }
+  .statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="flood l"></div><div class="flood r"></div>
+  <div id="toast"></div>
+
+  <div class="shell">
+    <!-- ============ TITLE SCREEN ============ -->
+    <section id="title" class="flex-1 flex flex-col items-center justify-center px-7 pb-24 text-center">
+      <div class="mb-4 w-[92px] h-[92px] rounded-[26px] border border-white/25 bg-white/5 grid place-items-center" style="backdrop-filter:blur(8px)">
+        <svg viewBox="0 0 24 24" class="w-12 h-12" fill="none" stroke="#eef3fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3a9 9 0 1 0 9 9"/><circle cx="12" cy="12" r="9"/>
+          <path d="M12 7.5 9 9.8l1.2 3.4h3.6L15 9.8Z"/><path d="M12 3v4.5M4.2 10.5l4.8-.7M19.8 10.5l-4.8-.7M7.5 20l2.7-3.4M16.5 20l-2.7-3.4"/>
+        </svg>
+      </div>
+      <h1 class="font-disp font-bold leading-[.92] tracking-[.02em] text-[42px]">FOOTBALL<br>CAREER 27</h1>
+      <p class="mt-3 text-[12px] tracking-[.22em] uppercase text-slate-400 font-disp font-semibold">One player. One career.</p>
+      <div class="mt-8 w-full max-w-[280px] flex flex-col gap-3">
+        <button class="btn" id="tNew">New Career</button>
+        <button class="btn" id="tLoad">Load Career</button>
+        <button class="btn" id="tDemo">Insta-Career Demo</button>
+        <button class="btn" id="tLog">Career Logs</button>
+      </div>
+      <p class="mt-8 text-[10px] text-slate-500 leading-relaxed max-w-[260px]">
+        Autosaves to this device. Fictionalised world by default — flip <em>Real Names</em> in Settings.
+      </p>
+    </section>
+
+    <!-- ============ CREATE CAREER ============ -->
+    <section id="create" class="hidden flex-1 overflow-y-auto px-4 pb-24" style="scrollbar-width:none">
+      <div class="pt-8 pb-4 text-center">
+        <h2 class="font-disp font-bold text-[22px] uppercase tracking-[.1em]">Create Your Player</h2>
+        <p class="clabel mt-1">Season 2026/27 &middot; Age 17</p>
+      </div>
+      <div class="card p-4 mb-3">
+        <div class="clabel mb-2">Full Name</div>
+        <input class="fld" id="cName" maxlength="22" placeholder="e.g. Ashim Kunwar" autocomplete="off" spellcheck="false">
+        <div class="clabel mt-4 mb-2">Nationality</div>
+        <select class="fld" id="cNat"></select>
+      </div>
+      <div class="card p-4 mb-3">
+        <div class="clabel mb-2">Position</div>
+        <div class="grid grid-cols-3 gap-2" id="cPos"></div>
+        <div class="mt-3 text-[11.5px] text-slate-400 leading-snug" id="cPosHint"></div>
+      </div>
+      <div class="card p-4 mb-3">
+        <div class="clabel mb-2">First professional club</div>
+        <div class="grid gap-2" id="cClub"></div>
+        <div class="mt-3 text-[11.5px] text-slate-400">Higher division = bigger wage, harder path to minutes. Lower division = straight to the starting XI.</div>
+      </div>
+      <button class="btn solid" id="cStart">Begin Career</button>
+    </section>
+
+    <!-- ============ GAME ============ -->
+    <section id="game" class="hidden flex-1 min-h-0 flex-col">
+      <header class="px-3 pt-[calc(8px+env(safe-area-inset-top))] pb-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="pill neu !py-1.5 !px-3 !text-[15px]" id="hOvr">65</div>
+            <div class="pill dim !py-1.5 !text-[11px]" id="hLv">Lv 1</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="pill gold !py-1.5 !px-2.5 !text-[11px]" id="hSp" title="Skill points">SP 0</div>
+            <button class="w-8 h-8 rounded-full grid place-items-center bg-white/10 border border-white/15" id="hSettings" aria-label="Settings">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="#dbe6f6" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.2M12 19.2v2.2M4.3 7.5l1.9 1.1M17.8 15.4l1.9 1.1M4.3 16.5l1.9-1.1M17.8 8.6l1.9-1.1"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="mt-2 flex items-center justify-center gap-2">
+          <span class="crest" id="hCrest"></span>
+          <span class="font-disp font-bold text-[16px] uppercase tracking-[.06em]" id="hClub">Real Madrid</span>
+        </div>
+        <div class="text-center text-[11.5px] text-slate-400 font-disp tracking-[.08em]" id="hDate">17th July 2026</div>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <div class="card !rounded-2xl px-2.5 py-2">
+            <div class="flex items-center justify-between mb-1.5"><span class="clabel">Energy</span><span class="text-[11px] font-bold fmt" id="hEnergyNum">100%</span></div>
+            <div class="bar"><i id="hEnergyBar" style="width:100%;background:linear-gradient(90deg,#63e6a3,#a9efc4)"></i></div>
+          </div>
+          <div class="card !rounded-2xl px-2.5 py-2">
+            <div class="flex items-center justify-between mb-1.5"><span class="clabel">Manager Trust</span><span class="chip !text-[8.5px] role reserve" id="hRoleChip">Reserve</span></div>
+            <div class="bar"><i id="hFavorBar" style="width:0%;background:linear-gradient(90deg,#7fb2f0,#bcd9ff)"></i></div>
+          </div>
+        </div>
+      </header>
+
+      <div class="scroll" id="scroll">
+        <div class="tabwrap on" id="tab-home"></div>
+        <div class="tabwrap" id="tab-dev"></div>
+        <div class="tabwrap" id="tab-career"></div>
+        <div class="tabwrap" id="tab-life"></div>
+        <div class="tabwrap" id="tab-hub"></div>
+      </div>
+
+      <nav class="dock" id="dock"></nav>
+    </section>
+
+    <div id="modalHost"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================================
+   FOOTBALL CAREER 27 — single-file, text-driven player career sim
+   Architecture
+     · gameState (S) is the ONLY mutable store and is JSON-serialisable (no fns/DOM).
+     · Every system returns an `effects` object; applyEffects() is the only mutator.
+     · Render is full re-render per tab: cheap at this scale and always consistent.
+   Sections: DATA · STATE · SAVE · ECONOMY · LEAGUE · MATCH · TRAINING · CAREER ·
+             LIFESTYLE · EVENTS · WEEK RESOLUTION · RENDER · BOOT
+===================================================================================== */
+'use strict';
+
+/* ------------------------------------------------------------------ utils */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rnd   = (a, b) => a + Math.random() * (b - a);
+const ri    = (a, b) => Math.floor(rnd(a, b + 1));
+const pick  = a => a[Math.floor(Math.random() * a.length)];
+const chance = p => Math.random() < p;
+const sum   = a => a.reduce((x, y) => x + y, 0);
+const esc   = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const keyOf = () => Math.random().toString(36).slice(2, 9);
+const r1    = n => Math.round(n * 10) / 10;
+/* weighted pick: [{w:number, ...}] */
+function wpick(list) {
+  const t = sum(list.map(x => x.w)); let r = Math.random() * t;
+  for (const x of list) { r -= x.w; if (r <= 0) return x; }
+  return list[list.length - 1];
+}
+/* Poisson sample (small lambda) */
+function poisson(lam) {
+  if (lam <= 0) return 0;
+  const L = Math.exp(-lam); let k = 0, p = 1;
+  do { k++; p *= Math.random(); } while (p > L && k < 9);
+  return k - 1;
+}
+/* money: €24.5K / €1.2M / €1.41B */
+function money(v, dec) {
+  const s = v < 0 ? '-' : '', a = Math.abs(v);
+  const f = (n, d) => n.toFixed(d).replace(/\.0+$/, '');
+  if (a >= 1e9) return s + '€' + f(a / 1e9, dec ?? 2) + 'B';
+  if (a >= 1e6) return s + '€' + f(a / 1e6, dec ?? 1) + 'M';
+  if (a >= 1e3) return s + '€' + f(a / 1e3, dec ?? 1) + 'K';
+  return s + '€' + Math.round(a);
+}
+const pct = v => Math.round(v) + '%';
+function ordinal(n) { const s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+/* ================================================================== DATA */
+const SEASONS_START = Date.UTC(2026, 6, 18);
+const DEV_BUDGET = 7;            /* attribute points a 17-year-old can bank from training in one season */
+const DRILLS_PER_WEEK = 2;          // Sat 18 Jul 2026
+const TAX = 0.45;                                      // income tax on wages
+const CONFIG = {
+  matchEnergy:   { starter: 25, sub: 14, reserve: 6, cup: 16, friendly: 8, intl: 12 },
+  drillEnergy:   18,
+  recoverBase:   45,
+  recoverCapBonus: 18,        // hard ceiling on all gear-based recovery bonuses
+  lowEnergyPct:  30,
+  favorThresh:   { starterUp: 75, starterDown: 65, subUp: 40, subDown: 35 },
+  favorClamp:    12,
+  seasonWeeks:   46,
+  retireAge:     38
+};
+const ATTRS = ['pace','shooting','passing','dribbling','defending','physical'];
+const ATTR_LABEL = { pace:'Pace', shooting:'Shooting', passing:'Passing', dribbling:'Dribbling', defending:'Defending', physical:'Physical' };
+
+/* Position → OVR weights (sum 1.0) + what each attribute is used for in the engine */
+const POSITIONS = {
+  ST: { label:'Striker', w:{ pace:.18, shooting:.30, passing:.10, dribbling:.16, defending:.02, physical:.24 },
+        hint:'Shooting drives finishing, Physical holds up play. Objectives will lean on goals — expect the manager to judge you on the scoresheet alone.' },
+  LW: { label:'Left Wing', w:{ pace:.30, shooting:.18, passing:.14, dribbling:.26, defending:.02, physical:.10 },
+        hint:'Pace and Dribbling unlock 1v1 events. Lower conversion, but you create chaos and collect assists.' },
+  RW: { label:'Right Wing', w:{ pace:.30, shooting:.18, passing:.14, dribbling:.26, defending:.02, physical:.10 },
+        hint:'Pace and Dribbling unlock 1v1 events. Cut inside on your strong foot for the shot, or whip it in for the assist.' },
+  CAM:{ label:'Attacking Mid', w:{ pace:.18, shooting:.20, passing:.28, dribbling:.22, defending:.04, physical:.08 },
+        hint:'Passing is your engine — the most chances per match, so the widest swing in Manager Trust, up and down.' },
+  CM: { label:'Central Mid', w:{ pace:.14, shooting:.14, passing:.28, dribbling:.18, defending:.14, physical:.12 },
+        hint:'Balanced. You get both creating and defensive prompts, so your rating is the most stable on the pitch.' },
+  CB: { label:'Centre Back', w:{ pace:.14, shooting:.06, passing:.14, dribbling:.06, defending:.38, physical:.22 },
+        hint:'Defending caps the opposition chance count. Ratings skew low but a clean sheet is worth real trust.' }
+};
+
+/* Leagues: tier 1 = elite. `clubs` = "Name|Short|Strength|Fake" */
+const LEAGUES = {
+  ENG: { name:'Premier Division', country:'England', tier:1, rep:1.00, clubs:[
+    'Northgate United|NGU|84|Ironside United','Kingsbridge FC|KGB|82|Kingsbridge Athletic','Harrowmont City|HMC|80|Harrowmont Rovers',
+    'Ashfield Wanderers|ASH|78|Ashfield Town','Belmont Park FC|BLP|76|Belmont Athletic','Cranwell Rangers|CRA|75|Cranwell FC',
+    'Kettering Avenue|KET|73|Kettering Albion','Selby Harbour|SEL|72|Selby Dockside','Thornbury FC|THB|70|Thornbury County',
+    'Elmswood City|ELM|69|Elmswood Rangers','Fairhaven Rovers|FAH|68|Fairhaven FC','Grimsdale United|GRI|67|Grimsdale Town',
+    'Halloway Athletic|HAL|66|Halloway City','Ingleford FC|ING|65|Ingleford Wanderers','Jessington Park|JES|64|Jessington United',
+    'Langholm Rangers|LAN|63|Langholm FC','Marlowbridge|MAR|62|Marlowbridge Town','Norbury Athletic|NOR|61|Norbury Rangers',
+    'Oakhaven City|OAK|60|Oakhaven Albion','Penhollow FC|PEN|58|Penhollow Rovers' ] },
+  ESP: { name:'Liga Dorada', country:'Spain', tier:1, rep:.98, clubs:[
+    'Real Corona|RCO|89|Real Castella','Atlético Sierra|ATR|84|Atlético Montaña','FC Verdaguer|VER|83|FC Montcau',
+    'Sevilla Baja|SEV|78|Betis del Sur','Vallecano CF|VAL|76|Vallecanito','San Adrián FC|SAD|74|Puerto Adrián',
+    'Athletic Bermeo|BER|73|Bermeo Koira','Gironella UE|GIR|71|Gironella Vell','Deportivo Almeda|ALM|70|Almeda Costa',
+    'CF Ribera|RIB|69|Ribera Norte','UD Castellfollit|CAS|67|Castellvell','Sporting Olvera|OLF|66|Olvera Marinera',
+    'CD Montearagón|MON|65|Montearagón Sur','Elche Viejo|ELV|64|Viejo Elitano','Racing Tudela|RAT|62|Racing Ribera',
+    'CF Ibardans|IBA|61|Ibardans CF','Ponferrera|PON|60|Bierzo Alta','UD Sotomayor|SOT|59|Sotomayor Playa',
+    'CD Almazara|ALZ|58|Almazara QC','Huracán Molina|MOL|56|Molina Verde' ] },
+  GER: { name:'Bundesklasse', country:'Germany', tier:1, rep:.95, clubs:[
+    'FC Ostburg|OST|85|FC Nordstern','Bayreuth Sport|BAY|83|Schwarz-Rot RB','VfB Altenhof|ALT|79|VfB Neuhaus',
+    'RB Halstenberg|HAL|78|Halstenberg Loko','Eintracht Weil|WEIL|76|Weil Adler','SC Friburg|FRI|74|SC Waldsee',
+    '1. FC Kaiserwerth|KAI|73|Kaiserwerth 04','Werltal SV|WER|72|Werltal Kiels','VfL Dorsten|DOR|70|Dorsten Knappen',
+    'Fortuna Siegburg|FOR|69|Siegburg Rose','Arminia Blankenburg|BLA|67|Blankenburg Eiche','Holstein Rendsburg|RND|66|Rendsburg Störche',
+    'Dynamo Eisenhütten|EIS|65|Eisenhütten Kraft','FC Bergheim|BER2|64|Bergheim Stadt','SSV Ulm-Nord|ULM|63|Ulm Spatzen',
+    'Kickers Paderborn|PAD|62|Paderborner Kicker','LSK Nordhorn|NOR2|60|Nordhorn Lahn','FC Seestadt|SEE|59|Seestadt Hansa',
+    'Greuther Fürthwald|GRU|58|Fürthwalder Klee','SV Zwickau-Ost|ZWI|56|Zwickauer Tagebau' ] },
+  ITA: { name:'Serie Aurea', country:'Italy', tier:1, rep:.93, clubs:[
+    'Inter Verona|INV|84|Inter Adriatica','AC Torricella|TOR|83|Torricella Rosé','Juventus Ligure|JUV|81|Genova Bianca',
+    'Napoli Orientale|NAP|80|Napoli Vesuvio','AS Roma Capitale|ROM|77|Roma Tevere','Lazio Fiorenza|LAZ|75|Fiorenza Biancelesti',
+    'Atalanta Bergame|ATA|74|Bergame Nerazzurri','AC Monzara|MON2|71|Monzara Brianteo','Bologna Emilia|BOL|70|Emilia Rossoblu',
+    'Torino Sabauda|TOR2|69|Sabauda Granata','UD Soncinese|SON|67|Soncinese Friuli','Sampdoria Occimare|SAM|66|Occimare Blucerchiati',
+    'US Lecce Meridiana|LEC|64|Meridiana Giallorossi','Cagliari Insula|CAG|63|Insula Rossoblu','Empoli Valdarno|EMP|62|Valdarno Azzurri',
+    'Genova Pegli|PEGL|61|Pegli Dockyard','Parma Emiliana|PAR|60|Emiliana Crociati','Como Lariano|COM|59|Lariano Azzurri',
+    'Venezia Maritime|VEN|58|Maritime lagunari','Pisa Tirreno|PIS|56|Tirreno Nerazzurri' ] },
+  FRA: { name:'Ligue Écarlate', country:'France', tier:2, rep:.88, clubs:[
+    'Paris Royal|PAR|85|Paris Impérial','Olympique Marseille|OM|79|OM Calanques','AS Monferrato|MONF|78|Monferrato Cote',
+    'LOSC Villeneuve|LOSC|75|Villeneuve Dogues','OGC Rivabelle|RIV|73|Rivabelle Aiglons','Stade Rennanais|REN|72|Rennanais Rouge',
+    'RC Lancoit|LAN|71|Lancoit Merlus','AS Santoyen|SAS|70|Santoyen Artésiens','FC Girondel|GIR2|69|Girondel Auvergnats',
+    'Toulouse Garonne|TOU|68|Garonne Violets','HSC Montélier|MTP|67|Montélier Paillades','FC Strasbourg|STR|66|Strasbourg Cigognes',
+    'Stade Auxerrois|AUX|64|Auxerrois Bourguignons','Angers Duerge|ANG|63|Duerge Scoïstes','FC Nantes-Atlantique|NAN|62|Atlantique Canaris',
+    'Brest Armoriqui|BRE|61|Armoriqui Pirates','Clermont Volcan|CLE|60|Volcan Auvergne','Reims Champenois|REI|59|Champenois Sangliers',
+    'Metz Grenouille|MET|57|Grenouille Lorraine','Ajaccio Isole|ACA|55|Isole Ours' ] }
+};
+
+/* AI superstars used for the golden-boot race + market comparisons */
+const STARS = [
+  { n:'K. Mbappé', f:'K. Marbée',  p:'ST', ovr:94, club:'Real Corona',     lg:'ESP', g:0, a:0, age:27 },
+  { n:'E. Haaland', f:'E. Halvorsen', p:'ST', ovr:94, club:'FC Ostburg',   lg:'GER', g:0, a:0, age:25 },
+  { n:'J. Vinicius', f:'J. Vitor',  p:'LW', ovr:91, club:'Real Corona',    lg:'ESP', g:0, a:0, age:24 },
+  { n:'M. Olise',  f:'M. Ollison', p:'RW', ovr:90, club:'Northgate United', lg:'ENG', g:0, a:0, age:24 },
+  { n:'L. Yamal',  f:'L. Martin',  p:'RW', ovr:90, club:'FC Verdaguer',    lg:'ESP', g:0, a:0, age:19 },
+  { n:'P. Sedlář', f:'P. Navarro', p:'CAM', ovr:89, club:'AC Torricella',  lg:'ITA', g:0, a:0, age:26 },
+  { n:'D. Kimball',f:'D. Ríos',    p:'ST', ovr:88, club:'Harrowmont City', lg:'ENG', g:0, a:0, age:28 },
+  { n:'A. Ferreiro',f:'A. Ferreira',p:'CAM', ovr:88, club:'Olympique Marseille', lg:'FRA', g:0, a:0, age:25 },
+  { n:'T. Brandt', f:'T. Brandner',p:'CM', ovr:87, club:'Bayreuth Sport',  lg:'GER', g:0, a:0, age:29 },
+  { n:'C. Bello',  f:'C. Bellodi', p:'CB', ovr:86, club:'Inter Verona',    lg:'ITA', g:0, a:0, age:30 }
+];
+
+/* Player-facing starter clubs: name → league + tier of the club you actually join */
+const STARTERS = [
+  { id:'PEN', club:'Penhollow FC',    lg:'ENG', rank:20, wage:2200,  tier:'League Two side', perk:'+8 Manager Trust to start — they signed you to play.' },
+  { id:'OAK', club:'Oakhaven City',   lg:'ENG', rank:19, wage:4200,  tier:'Championship side', perk:'+3 Trust. Watch the minutes: 18-man squads.' },
+  { id:'ZWI', club:'SV Zwickau-Ost',  lg:'GER', rank:20, wage:5200,  tier:'Bundesklasse bottom', perk:'+5 Trust, and German grounds sell out at tier four.' },
+  { id:'PIS', club:'Pisa Tirreno',    lg:'ITA', rank:20, wage:6000,  tier:'Serie Aurea bottom', perk:'Serie A exposure: scouts watch every minute. -5 Trust.' },
+  { id:'ACA', club:'Ajaccio Isole',   lg:'FRA', rank:20, wage:6800,  tier:'Ligue Écarlate bottom', perk:'Best route into the XI. Foreign league, so lower rep.' },
+  { id:'ALZ', club:'CD Almazara',     lg:'ESP', rank:20, wage:8100,  tier:'Liga Dorada bottom', perk:'Spain wants technique: +2 Passing at the check, -8 Trust.' },
+  { id:'MOL', club:'Huracán Molina',  lg:'ESP', rank:19, wage:11000, tier:'Liga Dorada 19th', perk:'Already in first-team training. Everything is harder here.' },
+  { id:'ULM', club:'VfB Altenhof',    lg:'GER', rank:3,  wage:16000, tier:'Bundesklasse top-3', perk:'Elite academy. You will be a Reserve for a season, maybe two.' }
+];
+
+const MANAGERS = ['G. Renard','T. Alarcón','M. Kovačič','D. Sørensen','P. Ferreira','R. Aitken','L. Nakamura','S. Duarte'];
+
+/* ---- lifestyle catalogue. pop = popularity, upkeep = weekly cost, rec = recovery bonus ---- */
+const CATALOG = {
+  estate: [
+    { id:'flat',    n:'City Apartment',        cost:180e3,   pop:3,  upkeep:240,   min:0,   d:'Mum approves. Nobody else notices.' },
+    { id:'villa',   n:'Riverside Villa',       cost:1.4e6,   pop:7,  upkeep:1400,  min:35,  d:'Pool, gym, and a drive camera-friendly enough for the tabloids.' },
+    { id:'manor',   n:'Country Manor',         cost:6.5e6,   pop:12, upkeep:5200,  min:55,  d:'Secluded enough to actually sleep before a Saturday 12:30 kick-off.' },
+    { id:'pent',    n:'Penthouse Duplex',      cost:14e6,    pop:18, upkeep:9800,  min:68,  d:'Panoramic terrace. Your brand lives here now.' },
+    { id:'island',  n:'Private Island Lease',  cost:38e6,    pop:26, upkeep:24e3,  min:78,  d:'Sponsor shoots happen here. So do the stories you deny.' }
+  ],
+  motors: [
+    { id:'hot',     n:'Hot Hatch',             cost:38e3,    pop:2,  upkeep:120,   min:0,   d:'Practical. The gaffer would rather you drove this.' },
+    { id:'german',  n:'Luxury Saloon',         cost:145e3,   pop:5,  upkeep:520,   min:30,  d:'Silent, warm, and it smells like a contract renewal.' },
+    { id:'supercar',n:'Supercar',              cost:2.1e6,   pop:14, upkeep:4800,  min:52,  d:'Loud. Great for the feed, terrible for the away end.' },
+    { id:'hyper',   n:'Hypercar (1 of 20)',    cost:8.4e6,   pop:22, upkeep:11e3,  min:70,  d:'A rolling sponsorship. Also a rolling injury headline waiting to happen.' }
+  ],
+  gear: [
+    { id:'boots',   n:'Recovery Boot System',  cost:12e3,  rec:2, pop:0, upkeep:0,   d:'Compression + cryo at home. +2 recovery per week.' },
+    { id:'chef',    n:'Personal Chef',         cost:220e3, rec:4, pop:1, upkeep:2100, d:'Never eat a petrol-station meal again. +4 recovery.' },
+    { id:'trainer', n:'Private Trainer',       cost:480e3, rec:3, pop:1, upkeep:3400, d:'Movement prep every morning. +3 recovery, +1 drill grade chance.' },
+    { id:'cryo',    n:'Cryo Chamber',          cost:1.1e6, rec:6, pop:2, upkeep:5200, d:'Minus 110°C. Brutal, effective. +6 recovery.' },
+    { id:'physio',  n:'24/7 Physio Retainer',  cost:2.4e6, rec:5, pop:1, upkeep:9000, d:'Halves the severity of soft-tissue injuries. +5 recovery.' },
+    { id:'sleep',   n:'Sleep & Nutrition Lab', cost:3.9e6, rec:7, pop:0, upkeep:7400, d:'Data-driven rest. +7 recovery, small form boost after travel.' }
+  ]
+};
+
+const INVESTMENTS = [
+  { id:'bonds',  n:'Blue-Chip Bonds',  risk:.03,  mu:.0035, min:5e4,  d:'Dull. Beats the bank, beats nothing else. Roughly +11% a year.' },
+  { id:'stock',  n:'Equity Portfolio', risk:.10,  mu:.0060, min:1e5,  d:'Moves with your league\'s TV money. Good years, bad years.' },
+  { id:'crypto', n:'Crypto Position',  risk:.34,  mu:.0040, min:5e4,  d:'Expected value is negative. Volatility is the product.' },
+  { id:'cafe',   n:'Local Café Chain', risk:.085, mu:.0075, min:2e5,  d:'Solid yield plus home-town goodwill: +1 popularity a cycle.' },
+  { id:'esports',n:'Esports Org',      risk:.22,  mu:.0065, min:5e5,  d:'Popularity+, but the gaffer calls it a distraction.' },
+  { id:'media',  n:'Media Startup',    risk:.28,  mu:.0080, min:1e6,  d:'Your own platform. Huge upside, most likely nothing.' }
+];
+
+const AGENTS = [
+  { id:'none', n:'No agent',                 fee:0,     cut:.00, speed:0, tierMax:60, d:'You answer your own phone. Offers are rare and low.' },
+  { id:'local',n:'Local agent (D. Petrov)',  fee:800,   cut:.04, speed:1, tierMax:72, d:'Knows every sporting director in the division.' },
+  { id:'pro',  n:'Licensed agent (M. Reis)', fee:4200,  cut:.06, speed:2, tierMax:82, d:'Runs a real negotiation. Will counter for you.' },
+  { id:'elite',n:'Super-agent (K. Sorrentino)', fee:19000, cut:.10, speed:3, tierMax:92, d:'Top-club tables. Also talks to the press when you stall.' },
+  { id:'mega', n:'Global agency (VANTAGE)', fee:62000, cut:.12, speed:4, tierMax:99, d:'Champions League projects, image rights, and a 12% cut.' }
+];
+
+const NATIONALITIES = ['England','Spain','Germany','Italy','France','Brazil','Argentina','Portugal','Netherlands','Belgium','Croatia','Senegal','Japan','South Korea','USA','Mexico','Colombia','Norway','Sweden','Denmark','Switzerland','Ghana','Nigeria','Morocco'];
+
+/* ---- match prompt library: each prompt's options test a specific attribute ---- */
+const PROMPTS = [
+  { id:'break', w:14, roles:['ST','LW','RW','CAM','CM'], min:0,
+    t:'The midfielder slips a ball through the lines and you are clean through on goal. The keeper is off his line.',
+    o:[ { l:'Shoot low into the corner', s:'shooting', d:9, k:'shot' },
+        { l:'Chip it over the keeper',   s:'shooting', d:19, k:'shot', flair:1 },
+        { l:'Try to round the keeper',   s:'dribbling', d:14, k:'dribble' } ] },
+  { id:'cross', w:13, roles:['ST','CM','CB','CAM'], min:0,
+    t:'The wingback floats a cross to the back post. You time your run and jump.',
+    o:[ { l:'Attack the ball with your head', s:'physical',  d:10, k:'shot' },
+        { l:'Lay it off to the onrushing mid', s:'passing',  d:4,  k:'pass' },
+        { l:'Shield it and hold up',            s:'physical', d:6,  k:'hold' } ] },
+  { id:'iso', w:13, roles:['LW','RW','CAM','ST'], min:0,
+    t:'Fullback on you one v one, touchline to your left, the striker pointing at the space behind.',
+    o:[ { l:'Take him on',            s:'dribbling', d:8,  k:'dribble' },
+        { l:'Whip in the early cross', s:'passing',   d:11, k:'pass' },
+        { l:'Cut inside and shoot',    s:'shooting',  d:15, k:'shot' } ] },
+  { id:'build', w:12, roles:['CM','CB','CAM'], min:0,
+    t:'Their press is squeezing you on the edge of your own box. Two passes are open, one of them is risky.',
+    o:[ { l:'Split the press',            s:'passing',  d:13, k:'pass', big:1 },
+        { l:'Play it safe, go backwards', s:'passing',  d:-8, k:'safe' },
+        { l:'Carry it out of trouble',    s:'dribbling',d:11, k:'dribble' } ] },
+  { id:'defend',w:11, roles:['CB','CM','LW','RW'], min:0,
+    t:'Their number nine has turned and is driving at your back line. You are the last man across.',
+    o:[ { l:'Time the tackle',           s:'defending', d:9,  k:'defend' },
+        { l:'Jockey and force it wide',  s:'defending', d:2,  k:'defend' },
+        { l:'Foul him — take the card',  s:'physical',  d:-6, k:'foul' } ] },
+  { id:'setpiece', w:9, roles:['ST','CAM','CM','CB'], min:0,
+    t:'You are standing over a free kick, twenty-four yards out, slightly left of centre.',
+    o:[ { l:'Whip it over the wall', s:'passing',  d:16, k:'pass' },
+        { l:'Power it under the bar', s:'shooting', d:18, k:'shot' },
+        { l:'Clip it to the penalty spot', s:'passing', d:6, k:'safe' } ] },
+  { id:'counter', w:11, roles:['ST','LW','RW','CM','CAM'], min:0,
+    t:'Turnover in your own half. It is three on two and you have the ball in stride.',
+    o:[ { l:'Go for the shot yourself', s:'shooting', d:14, k:'shot' },
+        { l:'Square it to the better man', s:'passing', d:9, k:'pass' },
+        { l:'Slow it, keep possession', s:'dribbling', d:-4, k:'safe' } ] },
+  { id:'tired', w:12, roles:['*'], min:1, energy:38,
+    t:'Ninety minutes in your legs and the lungs are burning. Their right back keeps running at you.',
+    o:[ { l:'Track him all day',   s:'physical',  d:6, k:'defend' },
+        { l:'Conserve, hold shape', s:'defending', d:2, k:'defend' },
+        { l:'Stay high, gamble',    s:'pace',      d:8, k:'shot' } ] },
+  { id:'pace', w:10, roles:['LW','RW','ST','CM'], min:0,
+    t:'They are caught napping on the restart. It is a footrace to the byline and the defence is turning.',
+    o:[ { l:'Use your speed', s:'pace', d:6, k:'dribble' },
+        { l:'Foul first, sprint later', s:'physical', d:0, k:'foul' } ] }
+];
+const SUB_ONLY = { id:'sub', w:20, roles:['*'], min:0,
+  t:'The fourth board goes up. Sixty-eighth minute, they have gone loose, and you have fifteen minutes to change the tie.',
+  o:[ { l:'Get on the ball immediately', s:'dribbling', d:6, k:'dribble' },
+      { l:'Hit them with direct running', s:'pace', d:9, k:'shot' },
+      { l:'Win it high, first touch',     s:'physical', d:4, k:'hold' } ] };
+
+/* ---- training drills ---- */
+const DRILLS = [
+  { id:'shooting', n:'Finishing Reps',   a:'shooting',  cost:18, d:'Twenty shots, five angles, keeper in a bad mood.' },
+  { id:'passing',  n:'Passing Grid',     a:'passing',   cost:18, d:'Rondo to one touch, then the diagonal switches.' },
+  { id:'sprint',   n:'Sprint Mechanics', a:'pace',      cost:18, d:'Resistance sled, then three flat 30s.' },
+  { id:'ball',     n:'1v1 possession',   a:'dribbling', cost:18, d:'Cage drill. Tight, ugly, effective.' },
+  { id:'gym',      n:'Cardio Gym',       a:'physical',  cost:18, d:'Zone two, then the plyo block.' },
+  { id:'defend',   n:'Defensive Shape',  a:'defending', cost:18, d:'Stepping lines, blocking shots, one v one recovery.' }
+];
+
+/* ---- trophy / badge definitions ---- */
+const HONOURS = {
+  league:'League Champion', league2:'Promotion Won', cup:'National Cup Winner', cuprun:'Cup Finalist',
+  boot:'Golden Boot', boot2:'Silver Boot', potm:'Player of the Month', poty:'PFA Player of the Year',
+  intl:'International Debut', intl10:'10 Caps', intl50:'50 Caps', intlboot:'Top Scorer (Nation)',
+  euro:'Continental Trophy', releg:'Relegated', sack:'Sacked'
+};
+
+/* ---- random event engine: one shared shape for every piece of drama in the game ----
+   cond(S) gates availability · w = weight · ch[] = choices { l, need(S)?, fx{}, out(S) } ---- */
+const EVENTS = [
+  { id:'nightlife', w:11, tag:'Night', cond:S=>S.age>=17,
+    t:'A mate from home is in town and there is a table at the club until three. Team-mates will see you there tomorrow.',
+    o:[ { l:'Go out', fx:{popularity:+7, energy:-22, favor:-6}, out:'Photos on the front page by breakfast. The fans love you, the gaffer does not.' },
+        { l:'Stay in, sleep', fx:{energy:+10, favor:+3}, out:'Lights out at ten. Boring, and it shows in your legs on Saturday.' },
+        { l:'Go for one drink, leave at eleven', fx:{popularity:+2, energy:+2, favor:-1}, out:'You are photographed leaving early. Half a win.' } ] },
+  { id:'interview', w:10, tag:'Press', cond:S=>true,
+    t:'Post-match flash interview. The reporter asks whether you are happy with your minutes.',
+    o:[ { l:'Back the manager publicly', fx:{favor:+7, popularity:-2}, out:'"He is the boss, I play when he says." The dressing room notices.' },
+        { l:'Hint you want a move', fx:{favor:-11, popularity:+6}, out:'Headline: "I need to play." The board is already calling your agent.' },
+        { l:'Say nothing, walk off', fx:{favor:-2, popularity:-1}, out:'Quiet. Safe. A bit cold.' } ] },
+  { id:'academy_kid', w:8, tag:'Club', cond:S=>S.age<=22,
+    t:'A 15-year-old in the academy asks for your number after training. He is the best thing the place has produced in a decade.',
+    o:[ { l:'Give it to him, talk for twenty minutes', fx:{favor:+3, xp:+40, energy:-4}, out:'You told him what you wished someone had told you.' },
+        { l:'Nod and keep walking', fx:{}, out:'He watches you get in the car. You feel old at eighteen.' } ] },
+  { id:'injury_scare', w:9, tag:'Body', cond:S=>S.energy/(S.energyCap||100)*100<45,
+    t:'Your hamstring has been tight for three days. The physio says two options.',
+    o:[ { l:'Play anyway', fx:{energy:-14, favor:+4}, out:'Ninety minutes on a nagging injury.', risk:.30 },
+        { l:'Withdraw from the squad', fx:{energy:+16, favor:-6}, out:'Rest now, or rest for six weeks later.' } ] },
+  { id:'sponsor', w:8, tag:'Money', cond:S=>S.popularity>=34,
+    t:'A boot company wants you in a campaign. Two-year deal, image rights included.',
+    o:[ { l:'Sign it', fx:{money:+220e3, popularity:+6, favor:-2}, out:'Boots, a launch event, and a logo on your collar.' },
+        { l:'Hold out for better terms', fx:{xp:+10}, out:'Your agent says the offer may not come back. Probably.' },
+        { l:'Decline — stay neutral', fx:{favor:+2}, out:'No logo, no campaign, no argument with the kit man.' } ] },
+  { id:'team_meeting', w:7, tag:'Club', cond:S=>true,
+    t:'Team meeting running forty minutes past the end. Nobody is listening. The gaffer is still talking.',
+    o:[ { l:'Ask a question', fx:{favor:+5, xp:+25}, out:'He answers, then uses your example for the rest of the room.' },
+        { l:'Stay quiet, take notes', fx:{favor:+1, xp:+15}, out:'You write it down. You might even read it.' },
+        { l:'Slip out early', fx:{favor:-7}, out:'Seen by the assistant. Noted in a notebook you will never read.' } ] },
+  { id:'home_ask', w:7, tag:'Family', cond:S=>S.age<=24,
+    t:'Your parents want you to fund a kitchen extension and a holiday for the whole family.',
+    o:[ { l:'Pay for all of it', fx:{money:-46e3, popularity:+3, morale:+6}, out:'Your mother posts the photo. The caption is your name.' },
+        { l:'Pay for the holiday', fx:{money:-14e3, morale:+2}, out:'Split the difference. Everybody survives.' },
+        { l:'Say it is not in the budget yet', fx:{money:0, morale:-5}, out:'True, and it will be quoted back to you in ten years.' } ] },
+  { id:'derby_abuse', w:6, tag:'Fans', cond:S=>true,
+    t:'Sixty minutes of a derby and your family name is being sung back at you, badly.',
+    o:[ { l:'Point at the badge after scoring', fx:{popularity:+6, favor:+2}, out:'The away end goes quiet for a week.' },
+        { l:'Celebrate nothing', fx:{favor:+4, popularity:-3}, out:'Disciplined. The home copy loves it, the terrace does not.' },
+        { l:'Argue back', fx:{popularity:+3, favor:-5}, out:'You get booked for dissent and a headline you did not want.' } ] },
+  { id:'cards_edge', w:6, tag:'Dissent', cond:S=>S.stats.y>=2,
+    t:'You are one yellow away from a ban and the referee has lost the game. Two fouls to stop a counter are sitting there.',
+    o:[ { l:'Tactical foul, accept the risk', fx:{favor:-2, yc:+1}, out:'Card number four. One more and you miss the big one.' },
+        { l:'Keep your hands clean', fx:{energy:-6}, out:'You get turned twice instead. The gaffer noticed which you chose.' } ] },
+  { id:'transfer_rumour', w:9, tag:'Market', cond:S=>S.windowOpen && S.ovr>=70,
+    t:'A Spanish paper reports a club you respect have made an enquiry. Your club denies it in a forty-word statement.',
+    o:[ { l:'Let it run', fx:{favor:-4, popularity:+5}, out:'The noise becomes useful leverage, or a problem.' },
+        { l:'Post a club loyalty message', fx:{favor:+6, popularity:-2}, out:'The gaffer reads it out in the meeting. Awkward for everyone.' },
+        { l:'Sue the paper', fx:{money:-9e3, popularity:+2}, out:'Nothing changes, but the statement was very firm.' } ] },
+  { id:'national_manager', w:7, tag:'Country', cond:S=>S.ovr>=68 && S.intl.level<2,
+    t:'The national team coach calls to say he is "aware of you" and watching the next two games.',
+    o:[ { l:'Ask about a role', fx:{favor:-1, xp:+20}, out:'He says earn it. At least he said it to your face.' },
+        { l:'Thank him and hang up', fx:{}, out:'You tell nobody. You think about it every night for a fortnight.' } ] },
+  { id:'car_offer', w:6, tag:'Lifestyle', cond:S=>S.money>400e3,
+    t:'A dealership offers you a launch car at cost, on condition you are photographed with it.',
+    o:[ { l:'Take the deal', fx:{money:-110e3, popularity:+8}, out:'Free publicity for them, a key for you.' },
+        { l:'Pay full price, no photos', fx:{money:-175e3, popularity:+2}, out:'More expensive, fewer questions.' },
+        { l:'Decline', fx:{}, out:'You keep the car you have. Nobody writes about it.' } ] },
+  { id:'mentor', w:6, tag:'Club', cond:S=>S.age>=28,
+    t:'The captain pulls you aside: your legs are going and your minutes are not. He wants to know if you will fight.',
+    o:[ { l:'Fight — demand a harder training block', fx:{energy:-16, favor:+5, xp:+70}, out:'Two weeks of being sick after sprints. It works.' },
+        { l:'Accept a rotation role', fx:{favor:+3, morale:-3}, out:'You will be a sub in the cup and that is fine now.' } ] },
+  { id:'charity', w:6, tag:'Image', cond:S=>S.money>120e3,
+    t:'The hospital ward you visited as a kid is asking for one afternoon and one donation.',
+    o:[ { l:'Go, and fund the whole wing', fx:{money:-140e3, popularity:+11, morale:+8, favor:+3}, out:'Nine hours, forty-one kids, one photo you actually like.' },
+        { l:'Donate quietly', fx:{money:-40e3, popularity:+2, morale:+4}, out:'No cameras. Nobody will print it, which was the point.' },
+        { l:'Send your agent an apology', fx:{morale:-4, popularity:-2}, out:'You think about it in the hotel car park.' } ] },
+  { id:'alcohol', w:5, tag:'Risk', cond:S=>S.age<=21,
+    t:'Two veterans have beer in the training-ground car park at 11pm on a Tuesday.',
+    o:[ { l:'Join them', fx:{energy:-8, popularity:+2, favor:-4}, out:'Fun, then a 3am WhatsApp from the kit manager.' },
+        { l:'Say no, politely', fx:{favor:+3}, out:'They call you boring for a month, then stop.' } ] },
+  { id:'own_goal', w:5, tag:'Pitch', cond:S=>(S.pos==='CB'||S.pos==='CM') && S.roleBase!=='reserve',
+    t:'A harmless cross comes to you on the edge of your box and it takes a deflection off your knee in.',
+    o:[ { l:'Own the mistake in the mixed zone', fx:{favor:+4, popularity:+2}, out:'"My touch, my fault." It buys you something real.' },
+        { l:'Say nothing', fx:{favor:-3}, out:'The clip runs on loop. So does the silence.' } ] },
+  { id:'youth_promo', w:8, tag:'Club', cond:S=>S.age<=18,
+    t:'The academy director wants you to sign your first professional contract today, before the window shuts.',
+    o:[ { l:'Sign for the wage on the table', fx:{money:+34e3, favor:+6}, out:'First real contract. You photograph it, then pretend you did not.' },
+        { l:'Push for a raise', fx:{money:+78e3, favor:-5}, out:'You get more. Someone remembers how you got it.' } ] },
+  { id:'media_row', w:6, tag:'Press', cond:S=>S.popularity>=60,
+    t:'A podcaster claims you are "the most over-rated player your age in Europe". It has 400k views.',
+    o:[ { l:'Respond with a joke', fx:{popularity:+5, favor:-2}, out:'It trends for a day. Your agent is not angry, just tired.' },
+        { l:'Ignore it', fx:{favor:+2, xp:+25}, out:'You score in the next game. Better.' } ] },
+  { id:'red_card_offer', w:4, tag:'Body', cond:S=>S.injury && S.bigMatch,
+    t:'You can take an injection and start the biggest game of the season. The doctor does not recommend it.',
+    o:[ { l:'Play on the injection', fx:{energy:-18, favor:+8}, out:'Eighty minutes on a leg that was not right.', risk:.42 },
+        { l:'Withdraw', fx:{favor:-7, energy:+18}, out:'You watch from the stand. It is loud up there.' } ] }
+];
+
+/* ================================================================ STATE */
+const SAVE_KEY = 'fc27.save.v1';
+let S = null;                       // the one and only gameState
+let UI = { tab:'home', modal:null, busy:false, sub:{} };
+
+function blankState(p) {
+  const st = STARTERS.find(x => x.id === p.clubId) || STARTERS[0];
+  const lg = LEAGUES[st.lg];
+  const club = parseClubs(st.lg).find(c => c.name === st.club);
+  const age = 17;
+  const base = { pace: 52, shooting: 48, passing: 50, dribbling: 53, defending: 34, physical: 51 };
+  // positional bias for a 17-year-old prospect
+  const bias = { ST:{shooting:+7,physical:+4}, LW:{pace:+7,dribbling:+5}, RW:{pace:+7,dribbling:+5},
+                 CAM:{passing:+7,dribbling:+5}, CM:{passing:+6,physical:+4}, CB:{defending:+14,physical:+8} }[p.pos];
+  for (const k in bias) base[k] += bias[k];
+  if (st.lg === 'ESP') base.passing += 2;
+  if (st.id === 'PEN') base.physical += 2;
+  const pot = clamp(ri(74, 93) + (club.str > 80 ? 2 : 0), 66, 97);
+  const wage = st.wage;
+
+  return {
+    v: 1, realNames: false, created: Date.now(),
+    name: p.name, nat: p.nat, age, pos: p.pos,
+    club: { name: club.name, short: club.short, lg: st.lg, str: club.str, tier: lg.tier },
+    attrs: base, ovr: 0, pot, level: 1, xp: 0, sp: 1,
+    energy: 100, energyCap: 100,
+    favor: st.rank >= 18 ? 60 : (st.perk.includes('+8') ? 48 : 34),
+    form: [], popularity: 8 + ri(0, 6), morale: 62, chemistry: 44,
+    money: 12000, earned: 0, spent: 0,
+    contract: { wage, years: 3, bonus: Math.round(wage * 26), clause: null },
+    agent: 'none',
+    stats: { apps:0, goals:0, assists:0, y:0, r:0, mins:0, shots:0, pass:0, passOk:0, duels:0, duelWin:0 },
+    s: { apps:0, goals:0, assists:0, y:0, r:0, mins:0, rating:[], starts:0, sub:0, bench:0 },
+    seasonNo: 1, week: 0, seasonStart: SEASONS_START,
+    honours: [], badges: {}, trophies: 0,
+    investments: [], owned: [], upkeep: 0, recBonus: 0,
+    table: {}, rounds: [], cup: null, results: [],
+    intl: { level: 0, caps: 0, goals: 0, callup: false },
+    injury: null, susp: 0, yellows: 0, bigMatch: false,
+    offers: [], windowOpen: false, windowDays: 0, requested: 0,
+    msgs: [], log: [], history: [], flags: {}, retired: false, drilledThisWeek: 0, restedThisWeek: 0,
+    simSpeed: 0, playedThisWeek: false, sponsorTier: 0
+  };
+}
+
+/* ---- derived values ---- */
+function ovrOf(attrs, pos) {
+  const w = POSITIONS[pos].w; let t = 0;
+  for (const k of ATTRS) t += attrs[k] * w[k];
+  return clamp(Math.round(t), 30, 99);
+}
+function attrCeiling() {
+  return Math.min(99, Math.round(S.pot - Math.max(0, S.pot - S.ovr) * 0.15));
+}
+function energyCap() { return Math.round(clamp(100 + (S.attrs.physical - 40) * 0.35, 96, 114)); }
+function energyPct()  { return clamp(Math.round(S.energy / S.energyCap * 100), 0, 100); }
+function recovPerWeek() {
+  const phys = (S.attrs.physical - 50) * 0.16;
+  const ageF = S.age > 30 ? -(S.age - 30) * 1.6 : (S.age < 21 ? 3 : 0);
+  const mor  = (S.morale - 50) * 0.08;
+  return Math.max(8, Math.round(CONFIG.recoverBase + phys + ageF + mor + S.recBonus));
+}
+const AGE_MULT = [[17,1.55],[20,1.50],[23,1.42],[26,1.20],[28,1.00],[30,.72],[32,.44],[34,.26],[36,.13],[39,.04]];
+function ageMult(a) {
+  if (a <= AGE_MULT[0][0]) return AGE_MULT[0][1];
+  for (let i = 1; i < AGE_MULT.length; i++)
+    if (a <= AGE_MULT[i][0]) {
+      const [a0, m0] = AGE_MULT[i - 1], [a1, m1] = AGE_MULT[i];
+      return m0 + (m1 - m0) * ((a - a0) / (a1 - a0));
+    }
+  return .03;
+}
+function marketValue() {
+  const o = S.ovr;
+  const base = Math.pow(clamp((o - 46) / 49, 0, 1), 4.2) * 140e6;
+  const tier = 0.55 + LEAGUES[S.club.lg].rep * 0.55 + (S.club.str - 60) / 130;
+  const cn = clamp(0.7 + S.contract.years * 0.12, 0.7, 1.32);
+  const fm = 0.55 + (S.favor / 100) * 0.9 + (S.form.length ? (avg(S.form.slice(-4)) - 6.4) * 0.12 : 0);
+  const raw = base * ageMult(S.age) * clamp(tier, .4, 1.35) * cn * clamp(fm, .6, 1.3);
+  return clamp(Math.round(raw / 5e4) * 5e4, 75e3, S.age <= 21 ? 165e6 : 235e6);
+}
+const avg = a => a.length ? sum(a) / a.length : 0;
+function wageWeekly()  { return S.contract.wage; }
+function wageNetWeek()  { return Math.round(S.contract.wage * (1 - TAX)); }
+function sponsorWeek()  { const p = S.popularity; return p >= 25 ? Math.round(p * p * 2.6 + S.sponsorTier * 9000) : 0; }
+function upkeepWeek()   { return S.upkeep; }
+function myClub()       { return parseClubs(S.club.lg).find(c => c.name === S.club.name) || parseClubs(S.club.lg)[0]; }
+function role()         { return S.injury ? 'injured' : (S.susp > 0 ? 'susp' : S.roleBase); }
+const ROLE_LABEL = { starter:'Starter', sub:'Substitute', reserve:'Reserve', injured:'Injured', susp:'Suspended' };
+
+/* ---- the only mutator: every system returns effects, applyEffects interprets them ---- */
+function applyEffects(fx, quiet) {
+  if (!fx) return [];
+  const out = [];
+  const P = (label, val, kind) => { if (val) out.push({ label, val, kind }); };
+  if (fx.energy) { S.energy = clamp(S.energy + fx.energy, 0, S.energyCap); P('Energy', fx.energy); }
+  if (fx.xp)     { gainXp(fx.xp); }
+  if (fx.sp)     { S.sp += fx.sp; P('Skill Points', fx.sp); }
+  if (fx.favor)  { setFavor(S.favor + fx.favor, fx.favor); P('Manager Trust', fx.favor); }
+  if (fx.popularity) { S.popularity = clamp(S.popularity + fx.popularity, 0, 100); P('Popularity', fx.popularity); }
+  if (fx.morale) { S.morale = clamp(S.morale + fx.morale, 0, 100); }
+  if (fx.chemistry) { S.chemistry = clamp(S.chemistry + fx.chemistry, 0, 100); }
+  if (fx.money)  { S.money += fx.money; if (fx.money > 0) S.earned += fx.money; else S.spent += -fx.money;
+                   P(fx.money > 0 ? 'Cash In' : 'Cash Out', fx.money, 'money'); }
+  if (fx.stats)  { for (const k in fx.stats) S.stats[k] = (S.stats[k] || 0) + fx.stats[k]; }
+  if (fx.s)      { for (const k in fx.s) S.s[k] = (S.s[k] || 0) + fx.s[k]; }
+  if (fx.attrs)  { for (const k in fx.attrs) { S.attrs[k] = clamp(S.attrs[k] + fx.attrs[k], 20, 99); } recalcOvr(); }
+  if (fx.gp)     { S.intl.goals += fx.gp; }
+  if (fx.yc)     { S.stats.y += fx.yc; S.s.y += fx.yc; S.yellows += fx.yc;
+                   if (S.yellows >= 5) { S.susp = 1; S.yellows = 0; out.push({ label:'Suspension', val:1, kind:'ban' }); } }
+  if (fx.rc)     { S.stats.r += fx.rc; S.s.r += fx.rc; S.susp = Math.max(S.susp, 2); out.push({ label:'Sent off — banned', val:fx.rc, kind:'ban' }); }
+  if (fx.injuryWeeks) { S.injury = { w: fx.injuryWeeks, left: fx.injuryWeeks, n: fx.injuryName || 'Muscle strain' };
+                        out.push({ label:'Injury', val:fx.injuryWeeks + 'w', kind:'bad' }); }
+  if (fx.flags)  { for (const k in fx.flags) S.flags[k] = fx.flags[k]; }
+  if (!quiet) out.forEach(o => logLine(o, fx._tag));
+  return out;
+}
+function recalcOvr() { S.ovr = ovrOf(S.attrs, S.pos); S.energyCap = energyCap(); }
+function gainXp(n) {
+  S.xp += n;
+  let need = 220 + (S.level - 1) * 130;
+  while (S.xp >= need) { S.xp -= need; S.level++; S.sp += 2; need = 220 + (S.level - 1) * 130;
+    queueMsg('LEVEL', 'Level ' + S.level, 'Body adapting. +2 Skill Points banked.'); }
+  S.xpNext = need;
+}
+/* how much you outgrow the level of the squad around you — this lifts you into the XI
+   without the trust meter having to reach 75 by itself, which is the classic bench-trap */
+function qualityEdge() {
+  const squad = (S.club.str || 60) - 10;
+  return Math.round(clamp((S.ovr - squad) * 1.15, 0, 28));
+}
+function selectionScore() { return clamp(S.favor + qualityEdge(), 0, 100); }
+function setFavor(target, delta) {
+  const before = S.roleBase;
+  S.favor = clamp(Math.round(target), 0, 100);
+  let r = S.roleBase || 'reserve';
+  const T = CONFIG.favorThresh;
+  const up = selectionScore();
+  for (let i = 0; i < 3; i++) {
+    if (r === 'starter') { if (S.favor < T.starterDown) { r = 'sub'; continue; } break; }
+    if (r === 'sub') { if (up >= T.starterUp) { r = 'starter'; continue; } if (S.favor < T.subDown) { r = 'reserve'; continue; } break; }
+    if (up >= T.starterUp) { r = 'starter'; continue; } if (up >= T.subUp) { r = 'sub'; continue; } break;
+  }
+  S.roleBase = r;
+  if (before !== r && before) {
+    const up = ['reserve','sub','starter'].indexOf(r) > ['reserve','sub','starter'].indexOf(before);
+    queueMsg('SQUAD', (up ? 'Promoted to ' : 'Dropped to ') + ROLE_LABEL[r].toUpperCase(),
+      up ? 'The gaffer named you in the ' + (r === 'starter' ? 'starting eleven' : 'matchday squad') + '.'
+         : 'Minutes will be harder to find this week.');
+    toast(up ? '▲ ' + ROLE_LABEL[r] : '▼ ' + ROLE_LABEL[r], up ? 'up' : 'dn');
+  }
+}
+/* rating → favor, deliberately non-linear so mediocrity never pays */
+function favorFromRating(x, ctx) {
+  let d = x < 5.5 ? -10 : x < 6.5 ? -4 : x < 7.5 ? 2 : x < 8.5 ? 7 : 13;
+  if (ctx.winner) d += 4; if (ctx.brace) d += 6; if (ctx.ht) d += 5;
+  /* objectives pay on completion; missing them costs at most a little, and only if you started */
+  if (ctx.missedObjectives) d -= ctx.role === 'starter' ? Math.min(4, ctx.missedObjectives * 2) : Math.min(2, ctx.missedObjectives);
+  if (ctx.role === 'reserve') d = clamp(Math.round(d * 0.3), -2, 6) + (x >= 7.5 ? 3 : 0);
+  if (ctx.role === 'sub' && d < 0) d = Math.ceil(d * 0.55);   // you cannot be judged like a starter for 20 minutes
+  if (ctx.role === 'sub' && x >= 7.5) d += 4;                 // impact off the bench is worth more per minute
+  if (d < 0 && x >= 6.2) d += 2;                              // decent showing in a bad team is not a crime
+  if (S.age <= 20 && d < 0) d = Math.ceil(d / 2);             // youth patience buffer
+  return clamp(d, -CONFIG.favorClamp, CONFIG.favorClamp);
+}
+
+/* ---- persistence ---- */
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
+function load() {
+  try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null;
+    const o = JSON.parse(raw); if (!o || o.v !== 1) return null; return o; } catch (e) { return null; }
+}
+function queueMsg(kind, title, body, act) {
+  S.msgs.unshift({ id: keyOf(), kind, title, body, week: S.week, season: S.seasonNo, read: false, act: act || null });
+  if (S.msgs.length > 44) S.msgs.pop();
+}
+function logLine(o, tag) {
+  S.log.unshift({ t: o.label, v: o.val, kind: o.kind, tag: tag || '', w: S.week, s: S.seasonNo });
+  if (S.log.length > 120) S.log.pop();
+}
+
+/* ================================================================ LEAGUE WORLD */
+const _clubCache = {};
+function parseClubs(lg) {
+  if (_clubCache[lg]) return _clubCache[lg];
+  const L = LEAGUES[lg];
+  return _clubCache[lg] = L.clubs.map((raw, i) => {
+    const [name, short, str, fake] = raw.split('|');
+    return { id: lg + i, name, fake, short, str: +str, lg, i };
+  });
+}
+const cname = c => (S && S.realNames && c.name ? c.name : (c.fake || c.name));
+function leagueName(lg) { const L = LEAGUES[lg]; return S && S.realNames ? L.name : L.name; }
+
+/* round-robin (circle method), 20 teams → 19 rounds, then reversed for 38 */
+function buildRounds(ids) {
+  const n = ids.length, arr = ids.slice(), out = [];
+  for (let r = 0; r < n - 1; r++) {
+    const pairs = [];
+    for (let i = 0; i < n / 2; i++) {
+      const h = arr[i], a = arr[n - 1 - i];
+      pairs.push(r % 2 ? [a, h] : [h, a]);
+    }
+    out.push(pairs);
+    arr.splice(1, 0, arr.pop());
+  }
+  const back = out.map(rd => rd.map(([h, a]) => [a, h]));
+  return out.concat(back);
+}
+
+function buildSeason(reset) {
+  const clubs = parseClubs(S.club.lg), ids = clubs.map(c => c.id);
+  S.rounds = buildRounds(ids);
+  if (reset) {
+    S.table = {}; clubs.forEach(c => S.table[c.id] = { p:0, w:0, d:0, l:0, gf:0, ga:0, pts:0, form:[] });
+    /* career totals (S.stats) NEVER reset — only season counters and the growth budget */
+    S.growth = { budget: DEV_BUDGET, used: 0, log: [] };
+  }
+  S.s = { apps:0, goals:0, assists:0, y:0, r:0, mins:0, rating:[], starts:0, sub:0, bench:0, pass:0, passOk:0 };
+  S.week = 0; S.playedThisWeek = false; S.drilledThisWeek = 0; S.yellows = 0; S.susp = 0;
+  S.form = []; S.objDone = 0; S.objMiss = 0; S.objectives = null; S.results = [];
+  S.cup = { stage:-1, stages:['Round of 16','Quarter-final','Semi-final','Final'], alive:true, clubs: cupSeeds(clubs) };
+  S.starGoals = {}; STARS.forEach((s, i) => S.starGoals[i] = { g: 0, a: 0 });
+  recalcOvr();
+}
+function cupSeeds(clubs) {
+  const top = clubs.slice().sort((a, b) => b.str - a.str).slice(0, 15).map(c => c.id);
+  const me = myClub().id;
+  if (top.includes(me)) top.splice(top.indexOf(me), 1);
+  top.push(me);
+  return top.sort(() => Math.random() - .5);
+}
+
+/* the 46-week calendar: friendlies, 38 league rounds, 4 cup rounds, 2 international windows */
+function schedule() {
+  if (S._sched) return S._sched;
+  const out = [{ t:'friendly', lbl:'Pre-season' }, { t:'friendly', lbl:'Pre-season' }];
+  let round = 0;
+  const cupAfter = { 8:0, 15:1, 23:2, 33:3 };
+  const intlAfter = { 12:0, 27:1 };
+  while (round < 38) {
+    round++;
+    out.push({ t:'league', round });
+    if (cupAfter[round] !== undefined) out.push({ t:'cup', stage: cupAfter[round] });
+    if (intlAfter[round] !== undefined) out.push({ t:'intl', n: intlAfter[round] });
+  }
+  out.push({ t:'final' });
+  return (S._sched = out);
+}
+function weekDate(w) { return new Date(S.seasonStart + w * 7 * 864e5); }
+function fmtDate(d) {
+  const M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return d.getUTCDate() + ordinal(d.getUTCDate()) + ' ' + M[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+function fmtShort(d) {
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return d.getUTCDate() + ' ' + M[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+function fixtureNow() {
+  const sch = schedule(), w = clamp(S.week, 0, sch.length - 1), e = sch[w];
+  const clubs = parseClubs(S.club.lg), me = myClub().id;
+  if (e.t === 'league' || e.t === 'friendly') {
+    let pairs;
+    if (e.t === 'league') pairs = S.rounds[e.round - 1] || [];
+    else pairs = [];
+    let fix = pairs.find(p => p[0] === me || p[1] === me);
+    if (!fix) fix = e.t === 'friendly' ? [me, clubs[(w * 3 + 5) % clubs.length].id] : (pairs[0] || [me, clubs[0].id]);
+    const home = fix[0] === me;
+    return { t: e.t, round: e.round, opp: clubs.find(c => c.id === (home ? fix[1] : fix[0])), home, stage:null };
+  }
+  if (e.t === 'cup') {
+    if (!S.cup.alive) return { t:'rest', label:'Cup — eliminated' };
+    const idx = S.cup.clubs.indexOf(me);
+    const oppId = S.cup.clubs[(idx + 1) % S.cup.clubs.length];
+    const opp = clubs.find(c => c.id === oppId) || clubs[0];
+    return { t:'cup', stage: S.cup.stages[e.stage], opp, home: idx % 2 === 0 };
+  }
+  if (e.t === 'intl') {
+    if (!S.intl.callup) return { t:'rest', label:'International window' };
+    return { t:'intl', opp: null, home: true, stage:'International' };
+  }
+  if (e.t === 'final') return { t:'final', label:'End of Season' };
+  return { t:'rest', label:'No fixture' };
+}
+function nextFixtures(n) {
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    const save = S.week; S.week = clamp(S.week + i, 0, schedule().length - 1);
+    const f = fixtureNow(); S.week = save;
+    out.push(f);
+  }
+  return out;
+}
+/* is this a "big" match: opponent top-6 or a cup/knockout */
+function isBig(f) {
+  if (!f || !f.opp) return f && f.t === 'cup';
+  const clubs = parseClubs(S.club.lg).slice().sort((a, b) => b.str - a.str);
+  return f.t !== 'friendly' && (clubs.indexOf(f.opp) < 6 || f.t === 'cup' || f.t === 'intl');
+}
+function windowStatus() {
+  const sch = schedule(), w = S.week;
+  const summer = w <= 7, winter = w >= 24 && w <= 26;
+  return (summer || winter) ? { open: true, left: summer ? (8 - w) : (27 - w) } : { open: false, left: 0 };
+}
+
+/* team-strength based goal model */
+function expectedGoals(a, b, homeAdv) {
+  const d = (a.str - b.str);
+  return clamp(1.32 + d * 0.052 + (homeAdv ? .24 : -.1), .28, 3.6);
+}
+function simTeamMatch(a, b) {
+  let hg = poisson(expectedGoals(a, b, true));
+  let ag = poisson(expectedGoals(b, a, false));
+  return [hg, ag];
+}
+function simOtherFixtures(roundIdx) {
+  const clubs = parseClubs(S.club.lg), me = myClub().id;
+  (S.rounds[roundIdx] || []).forEach(([hid, aid]) => {
+    if (hid === me || aid === me) return;
+    const h = clubs.find(c => c.id === hid), a = clubs.find(c => c.id === aid);
+    if (!h || !a) return;
+    const [hg, ag] = simTeamMatch(h, a);
+    applyToTable(h.id, a.id, hg, ag);
+    starScoreline(h, a, hg, ag); starScoreline(a, h, ag, hg);
+  });
+}
+function applyToTable(hid, aid, hg, ag) {
+  const T = S.table; if (!T[hid]) return;
+  const H = T[hid], A = T[aid];
+  H.p++; H.gf += hg; H.ga += ag; A.p++; A.gf += ag; A.ga += hg;
+  if (hg > ag) { H.w++; A.l++; H.pts += 3; } else if (hg < ag) { A.w++; H.l++; A.pts += 3; } else { H.d++; A.d++; H.pts++; A.pts++; }
+  H.form.push(hg > ag ? 'W' : hg < ag ? 'L' : 'D'); A.form.push(ag > hg ? 'W' : ag < hg ? 'L' : 'D');
+  if (H.form.length > 5) H.form.shift(); if (A.form.length > 5) A.form.shift();
+}
+function starScoreline(club, opp, g, xg) {
+  STARS.forEach((s, i) => {
+    if (s.club !== club.name) return;
+    const share = g * (0.30 + (s.p === 'ST' ? .16 : .02));
+    const goals = Math.floor(share + (Math.random() < (share % 1) ? 1 : 0));
+    if (s.p === 'CB') return;
+    S.starGoals[i].g += goals;
+    S.starGoals[i].a += Math.max(0, Math.round(g * (s.p === 'CAM' || s.p === 'LW' || s.p === 'RW' ? .10 : .05) - goals * .3));
+  });
+}
+function standings() {
+  const clubs = parseClubs(S.club.lg);
+  return clubs.map(c => ({ c, t: S.table[c.id] || { p:0,w:0,d:0,l:0,gf:0,ga:0,pts:0,form:[] } }))
+    .sort((a, b) => b.t.pts - a.t.pts || (b.t.gf - b.t.ga) - (a.t.gf - a.t.ga) || b.t.gf - a.t.gf);
+}
+function myPosition() { const i = standings().findIndex(r => r.c.id === myClub().id); return i + 1; }
+
+/* ================================================================ OBJECTIVES */
+const OBJ_LIB = [
+  { t:'rating', mk:x=>({ t:'rating', th:x, l:`Achieve a ${x.toFixed(1)} match rating` }), fw:4 },
+  { t:'ga',     mk:()=>({ t:'ga', th:1, l:'Score or assist' }), fw:6 },
+  { t:'goals',  mk:x=>({ t:'goals', th:x, l:`Score ${x} goal${x>1?'s':''}` }), fw:8 },
+  { t:'assists',mk:()=>({ t:'assists', th:1, l:'Set up a goal' }), fw:5 },
+  { t:'pass',   mk:x=>({ t:'pass', th:x, l:`Maintain >${x}% passing accuracy` }), fw:3 },
+  { t:'duels',  mk:x=>({ t:'duels', th:x, l:'Win ' + x + ' duels' }), fw:3 },
+  { t:'nocard', mk:()=>({ t:'nocard', th:0, l:'Stay off the sheet for cards' }), fw:2 },
+  { t:'clean',  mk:()=>({ t:'clean', th:0, l:'Keep a clean sheet' }), fw:6 },
+  { t:'mins',   mk:x=>({ t:'mins', th:x, l:'Play ' + x + ' minutes' }), fw:3 }
+];
+function makeObjectives() {
+  const f = fixtureNow(), r = role(), big = isBig(f);
+  const base = S.form.length ? avg(S.form.slice(-3)) : S.ovr / 10;
+  const objs = [];
+  const tgt = clamp(Math.round((base + (r === 'starter' ? .15 : -.35)) * 10) / 10, 6.0, 7.9);
+  objs.push(OBJ_LIB[0].mk(big ? Math.max(tgt, 7.2) : tgt));
+  if (r === 'reserve') objs.push({ t:'train', th:1, l:'Score a 7.0+ in any drill this week', fw:5 });
+  else if (['ST','LW','RW','CAM'].includes(S.pos)) objs.push(pick([OBJ_LIB[1].mk(), OBJ_LIB[2].mk(big?2:1), OBJ_LIB[3].mk()]));
+  else if (S.pos === 'CM') objs.push(pick([OBJ_LIB[1].mk(), OBJ_LIB[4].mk(82), OBJ_LIB[5].mk(3)]));
+  else objs.push(pick([OBJ_LIB[4].mk(84), OBJ_LIB[5].mk(4), OBJ_LIB[7].mk(), OBJ_LIB[6].mk()]));
+  if (objs.length < 3) objs.push(OBJ_LIB[8].mk(r === 'starter' ? (big ? 90 : 70) : 15));
+  if (big && objs.length < 3) objs.push(OBJ_LIB[0].mk(8.0));
+  return objs.slice(0, 3).map(o => ({ ...o, done: false }));
+}
+function evalObjectives(ctx) {
+  let done = 0, miss = 0, fw = 0;
+  (S.objectives || []).forEach(o => {
+    let ok = false;
+    if (o.t === 'rating') ok = ctx.rating >= o.th;
+    else if (o.t === 'ga') ok = ctx.goals + ctx.assists >= o.th;
+    else if (o.t === 'goals') ok = ctx.goals >= o.th;
+    else if (o.t === 'assists') ok = ctx.assists >= o.th;
+    else if (o.t === 'pass') ok = ctx.passAcc >= o.th;
+    else if (o.t === 'duels') ok = ctx.duels >= o.th;
+    else if (o.t === 'nocard') ok = ctx.yc === 0 && ctx.rc === 0;
+    else if (o.t === 'clean') ok = ctx.them === 0;
+    else if (o.t === 'mins') ok = ctx.mins >= o.th;
+    else if (o.t === 'train') ok = (S.flags.bestDrill || 0) >= 7.0;
+    o.done = ok; if (ok) { done++; fw += o.fw || 3; } else miss++;
+  });
+  return { done, miss, fw };
+}
+
+/* ================================================================ MATCH ENGINE */
+const AMBIENT = {
+  you_on: [
+    'The away end is already bored of your name. You have not touched it yet.',
+    'Their centre-half has been talking since the warm-up. He has not looked at the ball once.',
+    'You get a good reception from your own stand — the kind that comes with a wait.',
+    'Six hundred travelling voices chanting one name and it is not a player they rate yet.',
+    'The gaffer gestures for you to stay wide and hold the line. Understood.'
+  ],
+  you_off: [
+    'You spend a minute watching their keeper organise a wall that does not need one.',
+    'Their fullback is having an easy afternoon against the other side.',
+    'A long throw to you, a scramble, and the chance is gone. Those matter later.',
+    'Nobody in the ground can find out what you do for a living.',
+    'Their number six has started to dictate everything in front of their back four.'
+  ],
+  crowd: [
+    'Someone in the press box is typing a sentence about you. It will not be kind.',
+    'The referee loses a bit of control; three fouls in four minutes and no cards.',
+    'Rain arrives sideways and the ball starts skipping off the turf.',
+    'A goalkeeping error nearly hands someone a goal and everybody holds their breath.',
+    'Your family are somewhere behind that goal. You wave without looking.'
+  ],
+  goal: [
+    'The net ripples and for a second nobody moves, as if checking it is real.',
+    'It is a proper roar, the kind that starts in the away end and takes the whole ground.',
+    'You are pulled up by the corner flag by three team-mates who did not expect it either.'
+  ],
+  concede: [
+    'A defensive lapse, a goal, and a silence that covers three sides of the ground.',
+    'Their striker rolls his shoulders after finishing it. He has been waiting all week for that.',
+    'The gaffer throws his arms up. That one will be on the analysis screen on Monday.'
+  ]
+};
+const KIND_LABEL = { league:'League', friendly:'Pre-season', cup:'Cup', intl:'International' };
+
+function startMatch(forced) {
+  const f = fixtureNow();
+  if (f.t === 'rest') { advanceWeek(true); return; }
+  if (f.t === 'final') { endSeason(); return; }
+  const opp = f.opp || { name: S.nat + ' National Team', fake: S.nat + ' National Team', short: 'INT', str: clamp(S.ovr + 6, 60, 92), id: 'INTL' };
+  let r = role();
+  if (f.t === 'intl') r = S.intl.level >= 3 ? 'starter' : (chance(.65) ? 'starter' : 'sub');   // you travel, you get used
+  const blocked = (r === 'injured' || r === 'susp');
+  const energyCost = blocked ? 4 : (f.t === 'cup' ? CONFIG.matchEnergy.cup : f.t === 'friendly' ? CONFIG.matchEnergy.friendly : f.t === 'intl' ? CONFIG.matchEnergy.intl : CONFIG.matchEnergy[r] || 25);
+  S.match = {
+    kind: f.t, stage: f.stage || null, oppId: opp.id, oppName: opp.name, oppFake: opp.fake, oppStr: opp.str,
+    home: f.home, big: isBig(f), role: r, blocked, minute: 0, done: false,
+    score: { you: 0, them: 0 }, otherYou: 0, p: { goals:0, assists:0, shots:0, ontgt:0, pass:0, passOk:0, duels:0, duelWin:0, yc:0, rc:0, clinical:0, good:0, error:0, miss:0, keyPass:0, fouls:0, touches:0 },
+    rating: 6.1, script: [], idx: 0, log: [], energyCost, injured: false, objFw: 0
+  };
+  const m = S.match;
+  const me = myClub() || { str: 70 };
+  const lamYou = f.t === 'friendly' ? expectedGoals({str:me.str+4}, opp, m.home)
+                                  : expectedGoals({str:me.str}, opp, m.home);
+  const defAdj = ['CB','CM'].includes(S.pos) ? clamp((S.attrs.defending - 50) / 220, 0, .22) : 0;
+  let lamThem = clamp(expectedGoals(opp, {str:me.str}, !m.home) * (1 - defAdj) * (r === 'starter' ? 1 : .95), .3, 3.4);
+  m.lamYou = lamYou; m.lamThem = lamThem;
+  /* chance volume comes from the team, not from you alone: at a bottom club the service is worse */
+  m.chanceMult = clamp(lamYou / 1.5, 0.55, 1.12);
+  m.otherYou = poisson(lamYou * (r === 'starter' ? .58 : r === 'sub' ? .72 : .93));
+  m.baseThem = poisson(lamThem);
+  m.score.you = m.otherYou; m.score.them = m.baseThem;
+  buildScript(m);
+  UI.modal = 'match'; renderModal();
+}
+function buildScript(m) {
+  const s = [];
+  s.push({ k:'line', t:`Kick-off. ${m.home ? 'You line up at ' + cname({name:S.club.name, fake:S.club.name}) + ' against ' + cname({name:m.oppName, fake:m.oppFake}) + '.' : 'Road game. ' + cname({name:m.oppName, fake:m.oppFake}) + ' in front of their own people.'}` });
+  s.push({ k:'line', t: m.role === 'reserve'
+    ? (m.blocked ? (m.role === 'injured' ? 'You are not fit. The physio has you on a bike in the gym while it goes on without you.' : 'Suspended. You watch from the stand with your phone in your pocket.')
+                 : 'You are not in the matchday squad. Instead: forty-five minutes for the development side against their academy.')
+    : m.role === 'sub' ? 'Your name is on the sheet at number ' + ri(16, 24) + '. The gaffer says: "Go and change it."'
+    : 'Named in the eleven. Your first touch of the afternoon is watched by about nine thousand people and one scout.' });
+
+  const pool = PROMPTS.filter(p => p.roles.includes('*') || p.roles.includes(S.pos))
+    .filter(p => !p.energy || S.energy <= p.energy);
+  const prompts = [];
+  if (m.role === 'reserve') {
+    if (!m.blocked) prompts.push({ minute: 26, src:'u21' });
+  } else if (m.role === 'sub') {
+    prompts.push({ minute: ri(63, 74), src:'sub' });
+    if (m.big && chance(.45)) prompts.push({ minute: ri(80, 88), src:'main' });
+  } else {
+    const n = clamp(3 + (m.big && chance(.55) ? 1 : 0), 3, 4);
+    const mins = [ri(6,19), ri(24,41), ri(49,66), ri(71,86)];
+    for (let i = 0; i < n; i++) prompts.push({ minute: mins[i], src:'main' });
+  }
+  prompts.sort((a, b) => a.minute - b.minute);
+  let mi = 0, pushed = 0, CAP = 16;
+  if (S.energy < CONFIG.lowEnergyPct && m.role !== 'reserve' && !m.blocked) prompts.push({ minute: ri(55, 72), src:'tired' });
+  prompts.sort((a, b) => a.minute - b.minute);
+
+  prompts.forEach(pr => {
+    while (mi < (pr.minute || 70) && pushed < CAP) {
+      const step = ri(3, 7); mi = Math.min(pr.minute || 70, mi + step);
+      s.push({ k:'line', t: ambient(m, mi), minute: mi }); pushed++; }
+    const src = pr.src === 'sub' ? SUB_ONLY : pr.src === 'u21' ? U21_PROMPT : pr.src === 'tired' ? TIRED_PROMPT : wpick(pool.length ? pool : [SUB_ONLY]);
+    s.push({ k:'prompt', src, minute: pr.minute || 70 });
+    mi = (pr.minute || 70) + ri(2, 6);
+  });
+  let tail = 0;
+  while (mi < 88 && tail < 5 && pushed < CAP + 4) {
+    mi = Math.min(89, mi + ri(5, 12)); tail++; pushed++;
+    s.push({ k:'line', t: ambient(m, mi), minute: mi });
+  }
+  s.push({ k:'line', t: `Full time. ${m.score.you > m.score.them ? 'Your side hang on a corner long enough for the noise to change.' : m.score.you < m.score.them ? 'You lose the ball, and you lose the game.' : 'One point, and nothing settled.'}`, minute: 90 });
+  m.script = s;
+}
+const U21_PROMPT = { id:'u21', w:1, roles:['*'], min:0,
+  t:'Development squad, eighty-third minute, one nil down. A loose ball falls to you on the halfway line with nobody covering.',
+  o:[ { l:'Drive at them and finish', s:'shooting', d:8, k:'shot' },
+      { l:'Take it past two men', s:'dribbling', d:6, k:'dribble' },
+      { l:'Run it, then square it', s:'passing', d:5, k:'pass' } ] };
+const TIRED_PROMPT = { id:'tiredpull', w:1, roles:['*'], min:0,
+  t:'Something in your calf has stopped being a feeling and started being a fact. The bench is looking at you.',
+  o:[ { l:'Play on', s:'physical', d:12, k:'run_on' },
+      { l:'Signal for the sub', s:'passing', d:-40, k:'come_off' } ] };
+function ambient(m, min) {
+  const r = Math.random();
+  if (r < .18 && m.score.you > 0) return `You ${min}' — ${pick(AMBIENT.goal)}`;
+  if (r < .3) return `${min}' — ${pick(m.role === 'reserve' ? AMBIENT.you_off : AMBIENT.you_on)}`;
+  if (r < .45) return `${min}' — ${pick(AMBIENT.crowd)}`;
+  return `${min}' — ${pick(m.score.them > 0 && r < .7 ? AMBIENT.concede : AMBIENT.you_off)}`;
+}
+
+function checkSuccess(stat, diff) {
+  const formAdj = S.form.length ? (avg(S.form.slice(-3)) - 6.6) * 2.6 : 0;
+  const lowE = energyPct() < CONFIG.lowEnergyPct ? -12 : (energyPct() < 55 ? -4 : 2);
+  const morale = (S.morale - 50) * 0.06 + (S.chemistry - 50) * 0.04;
+  const clutch = S.match.big ? 1.5 : 0;
+  const base = clamp(38 + (stat - 30) * 1.05, 38, 94);
+  return { pc: clamp(Math.round(base - diff + formAdj + lowE + morale + clutch), 6, 96) };
+}
+function resolvePrompt(opt, src) {
+  const m = S.match;
+  const stat = S.attrs[opt.s] + (opt.k === 'shot' ? (S.attrs.dribbling - 50) * 0.06 : 0);
+  const { pc } = checkSuccess(stat, opt.d);
+  const roll = ri(1, 100);
+  const band = roll <= pc - 15 ? 'clinical' : roll <= pc ? 'good' : roll <= pc + 18 ? 'error' : 'miss';
+  const p = m.p; let line = '', rt = 0;
+  p.touches += 1;
+  if (opt.k === 'pass' || opt.k === 'safe') { p.pass += 1; if (band === 'clinical' || band === 'good') p.passOk += 1; }
+  if (opt.k === 'defend' || opt.k === 'dribble' || opt.k === 'hold') { p.duels += 1; if (band === 'clinical' || band === 'good') p.duelWin += 1; }
+  if (opt.s === 'shooting' && opt.k === 'shot') p.shots += 1;
+
+  /* shot selection: the second attempt is defended, the third is selfish */
+  if (opt.k === 'shot') { p.shotsTaken = (p.shotsTaken || 0) + 1; if (p.shotsTaken > 2) opt = { ...opt, d: opt.d + 16 }; }
+  const shotFatigue = Math.pow(0.86, Math.max(0, (p.shotsTaken || 1) - 2));
+  if (opt.s === 'pass' && opt.k === 'pass') p.teamPlay = (p.teamPlay || 0) + 1;
+  if (opt.k === 'shot') {
+    if (band === 'clinical') {
+      if (chance(clamp(0.5 * (m.chanceMult || 1) * shotFatigue, .18, .7))) { p.goals += 1; if (S.match.role !== 'reserve') m.score.you += 1; p.ontgt += 1; rt = 1.05; line = `GOAL. ${pick(AMBIENT.goal)}`; }
+      else { p.ontgt += 1; rt = .45; line = 'Struck it perfectly — fingertip save, out for a corner. The chance was real.'; }
+    }
+    else if (band === 'good') { p.ontgt += 1; rt = .2; line = `${src === 'x' ? '' : ''}${pick(['Saved, fingertip and post, inches away.','Struck well, forced into a real save.','Rattles the crossbar from the angle.'])})`.replace(')',''); }
+    else if (band === 'error') { rt = -.3; line = pick(['Blocked into the corner by a leg thrown in front.','You catch it on the toe and it squirts wide.','Skied it. The away end makes a bird noise.']); }
+    else { p.miss += 1; rt = -.55; line = pick(['Huge chance, over. You put your hands on your head.','You are a yard wide and the keeper does not move.','Scuffed it. Team-mate slams the turf.']); if (band === 'miss' && chance(.25)) m.objSitter = 1; }
+  } else if (opt.k === 'pass') {
+    const finisher = S.pos === 'CB' ? .38 : S.pos === 'CM' ? .62 : .82;
+    if (band === 'clinical') { p.keyPass += 1; if (S.match.role !== 'reserve' && chance(clamp(0.62 * (m.chanceMult || 1) * finisher, .22, .86))) { p.assists += 1; m.score.you += 1; } p.passOk += 1; rt = .9; line = pick(['You weigh it perfectly and your team-mate finishes. Assist.','A defence-splitting ball. One touch and it is in the net.']); }
+    else if (band === 'good') { p.keyPass += 1; p.passOk += 1; rt = .25; line = 'Key pass — the move dies but you created it. That counts.'; }
+    else if (band === 'error') { p.miss += 1; rt = -.3; line = 'Overhit, and it goes out for a throw to them.'; }
+    else { rt = -.5; line = 'Embarrassing. Straight to the nearest opponent and they break.'; m.score.them += chance(.35) ? 1 : 0; }
+  } else if (opt.k === 'dribble') {
+    if (band === 'clinical') { rt = .45; line = 'You leave him sitting down and win the corner. The ground makes a noise.'; }
+    else if (band === 'good') { rt = .2; line = 'Beat the first man, squared by the second — but you got the foul.'; }
+    else if (band === 'error') { rt = -.25; line = 'Knocked away from you on the touchline.'; }
+    else { rt = -.45; line = 'Nutmegged by the fullback, in front of your own bench. That will be on social media.'; }
+  } else if (opt.k === 'defend') {
+    if (band === 'clinical') { m.score.them = Math.max(0, m.score.them - 1); rt = .5; line = 'Block, hold your shape, no chance. The keeper slaps the turf and points at you.'; }
+    else if (band === 'good') { rt = .2; line = 'You get a foot in and force it behind for a corner.'; }
+    else if (band === 'error') { rt = -.3; line = 'Missed it, recovered, given away a corner off your boot.'; }
+    else { m.score.them += 1; rt = -.7; line = 'You commit, miss, and they score the other way. On you.'; }
+  } else if (opt.k === 'foul') {
+    if (band === 'miss' || band === 'error') { p.rc += 1; m.score.them += chance(.3) ? 1 : 0; rt = -1.1; line = 'LAST MAN. Red card. You walk, and the noise is unbelievable.'; }
+    else { p.yc += 1; rt = .1; line = 'Tactical foul, yellow card, and you accept it without argument.'; }
+  } else if (opt.k === 'safe') {
+    if (band === 'clinical' || band === 'good') { rt = .15; line = 'Simple, clean, keeps the tempo. Nobody writes about it, which is the point.'; p.passOk += 1; }
+    else { rt = -.25; line = 'Even that was too hard. Turnover.'; }
+  } else if (opt.k === 'hold') {
+    if (band === 'clinical') { rt = .35; line = 'You hold three of them up, win a foul, and the bench applauds.'; }
+    else if (band === 'good') { rt = .15; line = 'Held it up, brought a team-mate in.'; }
+    else { rt = -.3; line = 'Bullied off it. Physically, you lost that one.'; }
+  } else if (opt.k === 'run_on') {
+    if (band === 'clinical' || band === 'good') { rt = .2; line = 'You wave the bench off and play on. Your calf screams, but you finish.'; m.toughness = 1; }
+    else { rt = -.4; line = 'You try to play on and lose your man every time. Genuinely bad.'; m.injured = true; }
+  } else if (opt.k === 'come_off') {
+    rt = -.1; line = 'You come off. The gaffer does not look up from his notes.'; m.cameOff = 1; m.favorAdj = (m.favorAdj || 0) - 2;
+  }
+  if (opt.k === 'shot' && p.shotsTaken > 2) { m.favorAdj = (m.favorAdj || 0) - 1; }
+  if (p.teamPlay >= 2) { m.favorAdj = (m.favorAdj || 0) + 1; }
+  m.p.clinical += band === 'clinical' ? 1 : 0;
+  m.p.good     += band === 'good' ? 1 : 0;
+  m.p.error    += band === 'error' ? 1 : 0;
+  m.p.miss     += band === 'miss' ? 1 : 0;
+  m.rating = clamp(m.rating + rt, 3.0, 10);
+  m.script[m.idx].out = { line, band, pc, roll, rt };
+  return { line, band, pc, roll };
+}
+/* live rating modifiers applied continuously so the number means something */
+function liveRating() {
+  const m = S.match, p = m.p;
+  const diff = m.score.you - m.score.them;
+  return clamp(6.1 + p.goals * .55 + p.assists * .4 + p.clinical * .05
+    + (diff > 0 ? .4 : diff === 0 ? .1 : -.25) - p.rc * .9 - p.yc * .3
+    + (p.duelWin * .04) + (m.cameOff ? -.25 : 0), 3.2, 10);
+}
+function matchTick() {
+  const m = S.match; if (!m || m.done) return;
+  if (m.idx >= m.script.length) return finishMatch();
+  if (m.script[m.idx].k === 'prompt') return;              // waiting on the player
+  const e = m.script[m.idx];
+  m.minute = e.minute || m.minute;
+  m.rating = liveRating();
+  m.log.push({ t: e.t, min: e.minute });
+  m.idx++;
+  if (m.idx >= m.script.length) return finishMatch();
+  renderModal();
+}
+function chooseOption(i) {
+  const m = S.match, e = m.script[m.idx];
+  if (!e || e.k !== 'prompt' || !e.src.o[i]) { if (e) { m.log.push({ t: 'You make the simple choice.', min: e.minute }); m.idx++; } return renderModal(); }
+  const res = resolvePrompt(e.src.o[i], 'p');
+  m.minute = e.minute;
+  m.rating = liveRating();
+  m.log.push({ t: res.line, min: e.minute, band: res.band });
+  m.idx++;
+  if (m.idx >= m.script.length) return finishMatch();
+  renderModal();
+  if (res.band === 'clinical' && e.src.o[i].k === 'shot') burst();
+}
+
+/* ------------------------------- post-match resolution */
+function finishMatch() {
+  const m = S.match, p = m.p;
+  const roleMins = m.role === 'starter' ? (m.cameOff ? ri(52, 78) : ri(82, 90)) : m.role === 'sub' ? ri(14, 27) : m.blocked ? 0 : ri(40, 55);
+  m.mins = m.injured ? Math.max(12, roleMins - ri(25, 45)) : roleMins;
+  const baseN = m.role === 'starter' ? ri(18, 34) : m.role === 'sub' ? ri(4, 9) : ri(6, 14);
+  const baseOk = Math.round(baseN * clamp(.62 + (S.attrs.passing - 50) / 190, .5, .94));
+  p.pass += baseN; p.passOk += baseOk;
+  const passAcc = Math.round(clamp(p.passOk / Math.max(1, p.pass) * 100, 35, 97));
+  m.passAcc = passAcc;
+  if (['CB', 'CM'].includes(S.pos) && m.score.them === 0 && m.mins > 45) m.p.cleanSheet = 1;
+  m.rating = r1(liveRating() + (m.p.cleanSheet ? 0.45 : 0));
+  const ctx = { rating: m.rating, goals: p.goals, assists: p.assists, passAcc, duels: p.duelWin, yc: p.yc, rc: p.rc,
+                mins: m.mins, them: m.score.them, role: m.role, winner: m.score.you > m.score.them,
+                brace: p.goals >= 2, ht: p.goals >= 2 && m.score.you === m.score.them + 1 };
+  const obj = evalObjectives(ctx);
+  m.ctx = ctx; m.obj = obj;
+  let fav = favorFromRating(m.rating, { ...ctx, missedObjectives: obj.miss >= 2 ? obj.miss : 0 }) + (m.favorAdj || 0);
+  if (m.blocked) fav = -2;
+  m.favDelta = clamp(Math.round(fav), -CONFIG.favorClamp, CONFIG.favorClamp);
+  m.popDelta = clamp(Math.round(p.goals * 3 + p.assists * 1.5 + (m.rating >= 8 ? 3 : 0) + (p.rc ? -4 : 0) + (m.big ? 1 : 0)), -4, 9);
+  m.xp = 40 + p.goals * 55 + p.assists * 34 + obj.done * 30 + Math.round((m.rating - 6) * 22) + (m.big ? 25 : 0);
+  m.trophyLine = m.big && m.rating >= 8 ? 'Performance under the biggest lights so far.' : '';
+  m.injuryRoll = injuryCheck(ctx);
+  // pay the week (guard makes double-calls safe)
+  const wk = S.seasonNo + ':' + S.week;
+  const net = wageNetWeek() + sponsorWeek() - upkeepWeek() - (AGENTS.find(a => a.id === S.agent) || {}).fee * 1;
+  m.payslip = { gross: wageWeekly(), tax: Math.round(wageWeekly() * TAX), net: wageNetWeek(), sponsor: sponsorWeek(), upkeep: -upkeepWeek(), agent: -((AGENTS.find(a => a.id === S.agent) || {}).fee || 0), take: net };
+  if (S.flags.paid !== wk) { S.flags.paid = wk; S.money += net; S.earned += Math.max(0, net); }
+  // apply to world + self
+  applyToWorld(m);
+  const appInc = (m.role === 'reserve' && !m.blocked) ? 1 : (m.mins > 0 ? 1 : 0);
+  S.s.apps += appInc; S.stats.apps += appInc;
+  S.s.goals += p.goals; S.s.assists += p.assists;
+  S.stats.goals += p.goals; S.stats.assists += p.assists;
+  S.stats.shots += p.shots; S.stats.duels += p.duels; S.stats.duelWin += p.duelWin;
+  S.stats.pass += p.pass + 12; S.stats.passOk += p.passOk + Math.round((p.pass + 12) * .8);
+  if (m.mins) { S.s.mins += m.mins; S.stats.mins += m.mins;
+    /* a full season of minutes unlocks development beyond the training budget */
+    if (m.p.goals > 0 || m.rating >= 7.2) { S.growth = S.growth || { budget: DEV_BUDGET, used: 0 };
+      if (S.growth.used < S.growth.budget + 2 && S.s.mins > 900 && chance(.5)) {
+        const k = ['ST','LW','RW','CAM'].includes(S.pos) ? 'shooting' : S.pos === 'CM' ? 'passing' : 'defending';
+        if (S.attrs[k] < 96) { applyEffects({ attrs: { [k]: 1 } }); S.growth.used++; } } }
+  }
+  if (m.role === 'starter') S.s.starts++; if (m.role === 'sub') S.s.sub++; if (m.role === 'reserve') S.s.bench++;
+  S.s.rating.push(m.rating); if (S.s.rating.length > 40) S.s.rating.shift();
+  S.form.push(m.rating); while (S.form.length > 5) S.form.shift();
+  m.energyBefore = S.energy;
+  applyEffects({ energy: -m.energyCost, xp: Math.max(0, m.xp), favor: m.favDelta, popularity: m.popDelta,
+                 chemistry: p.goals > 0 ? 2 : -1, morale: p.goals > 0 ? 6 : m.rating < 5.6 ? -6 : 1,
+                 yc:p.yc, rc:p.rc,
+                 flags:{ lastRating:m.rating } });
+  if (m.injuryRoll) applyEffects({ injuryWeeks: m.injuryRoll.w, injuryName: m.injuryRoll.n });
+  S.energy = clamp(S.energy - 0, 0, S.energyCap);
+  S.s.popFlash = m.popDelta;
+  m.done = true; UI.modal = 'report'; renderModal(); save();
+}
+function injuryCheck(ctx) {
+  if (ctx.role === 'reserve') return null;
+  let p = .018 + (energyPct() < CONFIG.lowEnergyPct ? .075 : 0) + (S.congested ? .04 : 0) + Math.max(0, (S.age - 30)) * .014
+          + Math.min(.03, (S.s.mins || 0) / 4000);
+  if (S.owned.includes('physio')) p *= .55;
+  if (!chance(p)) return null;
+  const pool = S.owned.includes('physio')
+    ? [ {n:'Calf strain', w:1}, {n:'Knock — cleared', w:2}, {n:'Ankle knock', w:1} ]
+    : [ {n:'Hamstring strain', w:3}, {n:'Calf strain', w:3}, {n:'Ankle sprain', w:2}, {n:'Groin pull', w:2}, {n:'Knee ligament damage', w:1}, {n:'Fractured metatarsal', w:1} ];
+  const r = wpick(pool); if (r.w >= 5) r.w = 4;
+  return { n: r.n, w: clamp(r.w, 1, 9) };
+}
+function applyToWorld(m) {
+  const me = myClub(), clubs = parseClubs(S.club.lg);
+  if (m.kind === 'league' || m.kind === 'friendly') {
+    if (m.kind === 'league' && me && S.table[me.id]) {
+      const opp = clubs.find(c => c.id === m.oppId);
+      applyToTable(me.id, opp ? opp.id : m.oppId, m.score.you, m.score.them);
+      if (opp) { starScoreline(opp, me, m.score.them, m.score.you); }
+      simOtherFixtures(schedule()[S.week].round - 1);
+    }
+  } else if (m.kind === 'cup') simCup(m);
+  else if (m.kind === 'intl') { S.intl.caps++; S.intl.goals += m.p.goals; }
+}
+function simCup(m) {
+  const clubs = parseClubs(S.club.lg), me = myClub().id;
+  if (!S.cup.alive) return;
+  const ids = S.cup.clubs.slice().sort(() => Math.random() - .5);
+  const winners = [];
+  for (let i = 0; i < ids.length; i += 2) {
+    const a = ids[i], b = ids[i + 1];
+    if (b === undefined) { winners.push(a); continue; }
+    if (a === me || b === me) {
+      const youFirst = a === me;
+      const you = m.score.you, them = m.score.them;
+      const youWon = you > them;
+      winners.push(youWon ? (youFirst ? a : b) : (youFirst ? b : a));
+      if (!youWon) { S.cup.alive = false; queueMsg('CUP', 'KNOCKED OUT', `${cname({name:m.oppName, fake:m.oppFake})} sent you out of the ${S.cup.stages[S.cup.stage]} (${you}–${them}).`); }
+      else if (false) { applyEffects({}, true); S.honours.push({ k:'cup', s:S.seasonNo, d:S.cup.stages[3] }); S.trophies++; }
+      if (youWon) S.cup.stage = Math.min(3, S.cup.stage + 1);
+    } else {
+      const ha = clubs.find(c => c.id === a), hb = clubs.find(c => c.id === b);
+      const [x, y] = simTeamMatch(ha, hb); winners.push(x >= y ? a : b);
+    }
+  }
+  S.cup.clubs = winners.length >= 2 ? winners : [me, winners[0] === me ? winners[1] : winners[0]];
+  if (winners.length <= 2) S.cup.clubs = winners;
+  S.flags.cupRun = (S.flags.cupRun || 0) + (S.cup.alive ? 1 : 0);
+}
+/* season-scoring across all 5 leagues for the star leaderboards */
+function simStars(weekIdx) {
+  Object.keys(LEAGUES).forEach(lg => {
+    if (lg === S.club.lg) return;
+    if (weekIdx < 0 || weekIdx >= S.rounds.length) return;
+    const clubs = parseClubs(lg), rounds = buildRounds(clubs.map(c => c.id));
+    (rounds[weekIdx % 38] || []).forEach(([h, a]) => {
+      const H = clubs.find(c => c.id === h), A = clubs.find(c => c.id === a);
+      const [x, y] = simTeamMatch(H, A); starScoreline(H, A, x, y); starScoreline(A, H, y, x);
+    });
+  });
+}
+
+/* ------------------------------- week resolution */
+function advanceWeek(skipMatch) {
+  const wk = S.seasonNo + ':' + S.week;
+  if (S.flags.paid !== wk) {
+    S.flags.paid = wk;
+    const net = wageNetWeek() + sponsorWeek() - upkeepWeek() - ((AGENTS.find(a => a.id === S.agent) || {}).fee || 0);
+    S.money += net; S.earned += Math.max(0, net);
+  }
+  const rec = recovPerWeek() + (skipMatch ? 24 : 0) + (S.match ? 0 : 6);
+  applyEffects({ energy: rec, morale: skipMatch ? 4 : 1 }, true);
+  if (skipMatch) { applyEffects({ favor: -3, xp: 15 }, true); queueMsg('WEEK', 'REST WEEK', 'No drill, no match. Legs back to ' + energyPct() + '%. The gaffer noted the absence.'); }
+  // injuries / bans tick
+  if (S.injury) { S.injury.left--; if (S.injury.left <= 0) { queueMsg('MED', 'FITNESS CLEARED', `${S.injury.n} — fully fit and available for selection.`); S.injury = null; S.flags.postInjury = 1; } }
+  if (S.susp > 0) { S.susp--; if (!S.susp) queueMsg('FA', 'BAN SERVED', 'Available again for selection.'); }
+  S.congested = false;
+  /* development pay: a kid nobody plays still earns trust by working */
+  if (S.roleBase === 'reserve' && !S.injury) { S.favor = clamp(S.favor + (qualityEdge() > 14 ? 3 : 2), 0, 100); }
+  if (S.roleBase === 'sub' && S.s.mins > 600 && S.flags.lastRating >= 7) { S.favor = clamp(S.favor + 1, 0, 100); }
+  /* re-evaluate selection after the weekly drift, otherwise a promoted player never sees it */
+  setFavor(S.favor, 0);
+  // popularity drifts down, lifestyle slows the decay
+  const maintain = (S.owned.filter(id => CATALOG.estate.concat(CATALOG.motors).some(i => i.id === id)).length >= 2) ? .6 : 1.6;
+  S.popularity = clamp(S.popularity - maintain + (S.flags.hotStreak ? .6 : 0), 0, 100);
+  S.morale = clamp(S.morale + (energyPct() > 70 ? 2 : -3) + (S.favor > 70 ? 1 : -1), 5, 100);
+  S.chemistry = clamp(S.chemistry + (S.s.goals > 0 ? .8 : -.4) + (S.favor > 60 ? .6 : -.8), 0, 100);
+  // investment cycle every 4 weeks
+  if (S.week % 4 === 3) investTick();
+  // world keeps spinning when you are not playing
+  simStars(S.week % 38);
+  // transfer window bookkeeping + offer generation
+  const w = windowStatus(); S.windowOpen = w.open; S.windowDays = w.left;
+  if (w.open && chance(.5)) maybeGenerateOffers();
+  // weekly drama
+  S._flavour = null;
+  const ev = rollEvent();
+  S.week++;
+  S.match = null; S.playedThisWeek = false; S.drilledThisWeek = 0; S.flags.bestDrill = 0;
+  if (S.week >= schedule().length - 1) { save(); return endSeason(); }
+  if (ev) { UI.modal = 'event'; UI.event = ev; }
+  else { flavour(); }
+  if (S.flags.hotStreak && S.s.goals >= 5) S.flags.hotStreak = true;
+  save(); renderAll();
+}
+function flavour() {
+  const L = [
+    `${cname({name:S.club.name, fake:S.club.name})} report attendance figures up ${ri(2,12)}% since your arrival.`,
+    'Training ground open to the public; you sign forty shirts and lose your voice a little.',
+    `The club's podcast asks whether you are "the real thing". ${S.s.goals >= 3 ? 'You are invited back.' : 'Nobody answers.'}`,
+    'A local paper runs your academy coach saying you were "annoying, but right about everything".',
+    `${MANAGERS[S.flags.mgrIdx||0]} is asked about you and says: "He is fine. He is fine." Everyone hears the pause.`
+  ];
+  queueMsg('NEWS', 'This week', pick(L));
+}
+
+/* ================================================================ TRAINING */
+function doDrill(id) {
+  const d = DRILLS.find(x => x.id === id);
+  if (S.energy < d.cost) return toast('Too tired for that drill', 'dn');
+  if (S.injury) return toast('Rehab only — no drills', 'dn');
+  if (S.drilledThisWeek >= DRILLS_PER_WEEK) return toast('Two drills a week is the maximum', 'dn');
+  const ceiling = attrCeiling();
+  if (S.attrs[d.a] >= ceiling) return toast(`${ATTR_LABEL[d.a]} is at its ceiling (${ceiling}) — play minutes to break through`, 'dn');
+  S.growth = S.growth || { budget: DEV_BUDGET, used: 0 };
+  if (S.growth.used >= S.growth.budget) return toast('Development budget spent — ' + S.growth.budget + ' pts per season', 'dn');
+  const gradeRoll = ri(1, 100) + (S.attrs[d.a] - 55) * .8 + (S.owned.includes('trainer') ? 6 : 0) + (energyPct() > 75 ? 4 : -6) - (S.flags.postInjury ? 10 : 0);
+  const g = gradeRoll >= 118 ? 'A' : gradeRoll >= 92 ? 'B' : 'C';
+  const gainPts = { A: 2, B: 1, C: 1 }[g];
+  const xp = { A: 90, B: 55, C: 30 }[g];
+  const rating = { A: 7.6 + rnd(0, 1.4), B: 6.6 + rnd(0, .9), C: 5.4 + rnd(0, 1.1) }[g];
+  S.flags.bestDrill = Math.max(S.flags.bestDrill || 0, Math.round(rating * 10) / 10);
+  const fx = { energy: -d.cost, xp, sp: g === 'A' ? 2 : 1, favor: S.roleBase === 'reserve' ? 2 : 1 };
+  /* growth is rationed by the season budget AND by the attribute ceiling */
+  const room = Math.max(0, ceiling - S.attrs[d.a]);
+  let gain = Math.min(gainPts, room, S.growth.budget - S.growth.used);
+  if (g === 'A' && room > gain && S.attrs[d.a] < ceiling - 2) gain = Math.min(gain + 1, S.growth.budget - S.growth.used);
+  fx.attrs = {}; if (gain > 0) { fx.attrs[d.a] = gain; S.growth.used += gain; }
+  const eff = applyEffects(fx);
+  S.drilledThisWeek++;
+  S.s.drillLog = S.s.drillLog || [];
+  S.s.drillLog.unshift({ n: d.n, g, a: ATTR_LABEL[d.a], pts: fx.attrs[d.a], w: S.week });
+  if (S.s.drillLog.length > 12) S.s.drillLog.pop();
+  UI.modal = null; save(); renderAll();
+  toast(`${d.n} — grade ${g} (+${fx.attrs[d.a]} ${ATTR_LABEL[d.a].split(' ')[0]})`, g === 'A' ? 'up' : g === 'C' ? 'dn' : '');
+  return { g, rating, eff };
+}
+function buyAttr(k) {
+  if (S.sp < 1) return toast('No skill points', 'dn');
+  if (S.attrs[k] >= 99) return toast('Maxed', 'dn');
+  const ceiling = attrCeiling();
+  if (S.attrs[k] >= ceiling) return toast(`Locked by potential (${ceiling}) — seasons and minutes break that, not points`, 'dn');
+  const cost = S.attrs[k] >= 80 ? 2 : 1;
+  if (S.sp < cost) return toast(`Needs ${cost} SP`, 'dn');
+  S.sp -= cost;
+  applyEffects({ attrs: { [k]: 1 } });
+  recalcOvr(); save(); renderAll();
+}
+
+/* ================================================================ CAREER / AGENT / TRANSFERS */
+function hireAgent(id) {
+  const a = AGENTS.find(x => x.id === id);
+  if (a.id !== 'none' && S.money < a.fee * 6) return toast('Cannot cover the retainer', 'dn');
+  S.agent = id;
+  S.upkeep = upkeepOf();
+  queueMsg('AGENT', 'Agent appointed', `${a.n} is representing you. Retainer €${a.fee.toLocaleString()}/week, ${Math.round(a.cut*100)}% of wages and signing fees.`);
+  save(); renderAll(); toast('Agent: ' + a.n, 'up');
+}
+function upkeepOf() {
+  const items = CATALOG.estate.concat(CATALOG.motors, CATALOG.gear);
+  const up = sum(S.owned.map(id => (items.find(i => i.id === id) || {}).upkeep || 0));
+  return up + ((AGENTS.find(a => a.id === S.agent) || {}).fee || 0);
+}
+function requestTransfer(kind) {
+  if (S.windowOpen === false && kind === 'transfer' && !S.flags.forcedMove) {
+    // asking outside a window still makes noise
+    S.flags.requested = 1;
+    applyEffects({ favor: -9, popularity: +4 });
+    queueMsg('MARKET', 'TRANSFER REQUEST LODGED', 'You told the club you want out. The board is not pleased, the fans are split, and your agent has your back. Offers arrive when a window opens.');
+    toast('Request lodged — expect friction', 'dn');
+  }
+  if (kind === 'loan') {
+    const tierDown = clamp(S.club.str - 10, 52, 90);
+    const clubs = parseClubs(S.club.lg).filter(c => Math.abs(c.str - tierDown) < 7 && c.id !== myClub().id);
+    if (!clubs.length) return toast('No loan destination available', 'dn');
+    const c = pick(clubs);
+    applyEffects({ favor: 0, popularity: -1 });
+    UI.loanOffer = { club: c.name, fake: c.fake, lg: S.club.lg, wage: Math.round(S.contract.wage * .6), minutes: 'guanteed starter', role: 'starter' };
+    UI.modal = 'loan'; renderModal(); return;
+  }
+  S.requested = 1; maybeGenerateOffers(true); save(); renderAll();
+}
+function maybeGenerateOffers(force) {
+  const ag = AGENTS.find(a => a.id === S.agent);
+  const val = marketValue(), ovr = S.ovr;
+  const desperate = S.favor < 30 && S.s.apps > 4;
+  const outgrown = ovr > S.club.str + 5;
+  if (!force && !(desperate || outgrown || S.contract.years <= 1 || S.requested)) return;
+  const n = clamp(1 + ag.speed + (force ? 1 : 0) + ri(0, 1), 1, 4);
+  const pools = Object.keys(LEAGUES).map(lg => parseClubs(lg).map(c => ({ ...c, lg }))).flat();
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    const maxOvr = ag.tierMax;
+    const cands = pools.filter(c => c.name !== S.club.name && c.str <= maxOvr + 3 && c.str >= S.club.str - 9 && c.id !== (myClub() || {}).id);
+    if (!cands.length) continue;
+    const c = wpick(cands.map(x => ({ x, w: Math.pow(clamp(1 - Math.abs(x.str - (S.club.str + 6)) / 22, .05, 1), 2) }))).x;
+    const lg = LEAGUES[c.lg];
+    const wantUpgrade = c.str > S.club.str + 3;
+    const wage = Math.round(clamp(val * 0.0016 * (wantUpgrade ? 1.25 : .95), S.contract.wage * .85, S.contract.wage * 4.2) / 100) * 100;
+    const years = ri(2, 5);
+    const bonus = Math.min(Math.round(wage * ri(12, 26)), Math.round(val * 0.07));
+    const canAfford = c.str > 78 || val < 25e6 || chance(.55);
+    if (!canAfford) continue;
+    const fee = Math.round(val * rnd(.9, 1.7) / 1e5) * 1e5;
+    list.push({ id: keyOf(), club: c.name, fake: c.fake, short: c.short, lg: c.lg, lgName: lg.name, str: c.str,
+      wage, years, bonus, fee, tier: lg.tier, rep: lg.rep, role: c.str < 74 ? 'starter' : chance(.5) ? 'rotation' : 'squad',
+      project: pick(['Rebuild with youth','Title push now','Mid-table security','Promotion specialists','European qualification','Financial reset — sales needed']),
+      clause: c.str < 76 && chance(.5) ? 'starter' : null, agent: ag.n });
+  }
+  S.offers = list.concat(S.offers).slice(0, 6);
+  if (list.length) { list.forEach(o => queueMsg('OFFER', 'New offer — ' + (S.realNames ? o.club : o.fake), `${money(o.wage)} weekly, ${o.years} years, ${money(o.bonus)} signing. ${LEAGUES[o.lg].name}.`, 'offers'));
+    toast(list.length + ' contract offer' + (list.length > 1 ? 's' : '') + ' in', 'up'); }
+}
+function acceptOffer(id) {
+  const o = S.offers.find(x => x.id === id); if (!o) return;
+  const ag = AGENTS.find(a => a.id === S.agent);
+  const netBonus = Math.round(o.bonus * (1 - ag.cut));
+  const oldLg = S.club.lg;
+  const news = `${S.name} to ${S.realNames ? o.club : o.fake} for ${money(o.fee)}. ${o.years}-year deal, ${money(o.wage)} per week, ${money(netBonus)} signing bonus (net of ${Math.round(ag.cut*100)}% agent fee).`;
+  const upgrade = o.str > S.club.str + 2;
+  S.club = { name: o.club, short: o.short, lg: o.lg, str: o.str, tier: o.tier };
+  S.contract = { wage: o.wage, years: o.years, bonus: o.bonus, clause: o.clause };
+  S.popularity = clamp(S.popularity + (upgrade ? 8 : 1), 0, 100);
+  S.chemistry = 24; S.morale = clamp(S.morale + 12, 0, 100);
+  S.favor = o.role === 'starter' ? 68 : o.role === 'rotation' ? 48 : 34;
+  setFavor(S.favor, 0);
+  S.money += netBonus; S.earned += netBonus; S.offers = []; S.requested = 0; S.flags.requested = 0;
+  S.transferHistory = S.transferHistory || [];
+  S.transferHistory.unshift({ s: S.seasonNo, w: S.week, to: (S.realNames ? o.club : o.fake), fee: o.fee, wage: o.wage, kind: 'Transfer' });
+  if (o.lg !== oldLg) { S._sched = null; buildSeason(false); catchUpLeague(); }
+  queueMsg('DONE', 'TRANSFER COMPLETED', news);
+  UI.modal = null; save(); renderAll(); toast('Signed. New chapter.', 'up');
+}
+function catchUpLeague() {
+  const clubs = parseClubs(S.club.lg), ids = clubs.map(c => c.id);
+  S.rounds = buildRounds(ids);
+  S.table = {}; clubs.forEach(c => S.table[c.id] = { p:0,w:0,d:0,l:0,gf:0,ga:0,pts:0,form:[] });
+  const upto = Math.min(S.week - 1, S.rounds.length - 1);
+  for (let r = 0; r <= upto; r++) {
+    (S.rounds[r] || []).forEach(([h, a]) => {
+      const H = clubs.find(c => c.id === h), A = clubs.find(c => c.id === a);
+      if (!H || !A) return;
+      const [x, y] = simTeamMatch(H, A); applyToTable(h, a, x, y);
+    });
+  }
+}
+function renewContract() {
+  if (S.contract.years > 1 && S.favor > 40) return toast('Not yet — the club will move when it must', 'dn');
+  const val = marketValue();
+  const uplift = clamp(1 + (S.ovr - (S.club.str - 8)) / 40 + (S.s.goals / 12), 1.05, 1.9);
+  const wage = Math.round(S.contract.wage * uplift / 50) * 50;
+  UI.renewal = { wage, years: ri(3, 5), bonus: Math.round(wage * 22) };
+  UI.modal = 'renew'; renderModal();
+}
+function signRenewal(accept) {
+  if (accept) { S.contract.wage = UI.renewal.wage; S.contract.years = UI.renewal.years; S.contract.bonus = UI.renewal.bonus;
+    applyEffects({ favor: 4, popularity: 2 }); queueMsg('CONTRACT', 'NEW DEAL SIGNED', `${money(S.contract.wage)} per week until ${2026 + S.seasonNo - 1 + S.contract.years}.`); }
+  else { applyEffects({ favor: -6 }); queueMsg('CONTRACT', 'OFFER REJECTED', 'You turned the club down. They have told the media you "want to leave".'); }
+  UI.renewal = null; UI.modal = null; save(); renderAll();
+}
+function acceptLoan() {
+  const o = UI.loanOffer;
+  S.loan = { club: o.club, fake: o.fake, wage: o.wage, until: S.week + 22 };
+  S.club = { name: o.club, short: (parseClubs(o.lg).find(c => c.name === o.club) || {}).short, lg: o.lg,
+             str: (parseClubs(o.lg).find(c => c.name === o.club) || {}).str, tier: LEAGUES[o.lg].tier };
+  S.contract.wage = o.wage; S.favor = 72; setFavor(72, 0); S.chemistry = 18; S.morale += 10;
+  queueMsg('LOAN', 'LOAN MOVE AGREED', `Season-long move to ${S.realNames ? o.club : o.fake}. You are the first name on the sheet there. Parent club watching every minute.`);
+  UI.loanOffer = null; UI.modal = null; save(); renderAll(); toast('Loan agreed — minutes guaranteed', 'up');
+}
+function endLoan() {
+  if (!S.loan) return;
+  const parent = S.flags.parentClub;
+  queueMsg('LOAN', 'LOAN ENDED', 'Back to the parent club for pre-season. They saw your numbers.');
+  S.loan = null; S.flags.parentClub = null; save();
+}
+
+/* ================================================================ INTERNATIONAL LADDER */
+function intlCheck() {
+  const rep = LEAGUES[S.club.lg].rep, tier = LEAGUES[S.club.lg].tier;
+  const score = S.ovr * .8 + S.favor * .3 + avg(S.form) * 6 + rep * 12 + (S.popularity * .12);
+  const want = S.intl.level;
+  let next = want;
+  if (want === 0 && score > 66) next = 1;                      // youth squad
+  if (want === 1 && (S.ovr >= 72 && S.favor >= 55)) next = 2;  // senior call-up
+  if (want === 2 && (S.ovr >= 79 && S.favor >= 72)) next = 3; // regular
+  if (want === 3 && (S.ovr >= 86 && S.s.goals >= 8)) next = 4; // captaincy talk
+  if (next > want) {
+    S.intl.level = next;
+    const label = ['', 'Youth squad', 'Senior debut', 'First-team regular', 'Captain'][next];
+    queueMsg('COUNTRY', 'INTERNATIONAL UPDATE', `${S.nat} — ${label}. ${next === 2 ? 'You have been handed a debut. Two friendly caps to earn.' : 'Your standing with the country has changed.'}`);
+    applyEffects({ popularity: next === 2 ? 9 : 5, morale: 8 });
+    if (next === 2) unlock('intl');
+  }
+  S.intl.callup = S.intl.level >= 2 && S.ovr >= 70;
+}
+function unlock(k, season) {
+  if (!S.badges) S.badges = {};
+  if (S.badges[k]) return; S.badges[k] = season ?? S.seasonNo;
+}
+
+/* ================================================================ LIFESTYLE + INVESTMENTS */
+function buyItem(cat, id) {
+  const it = CATALOG[cat].find(x => x.id === id);
+  if (S.owned.includes(id)) return toast('Already owned', 'dn');
+  if (S.popularity < (it.min || 0)) return toast(`Needs ${it.min} popularity`, 'dn');
+  if (S.money < it.cost) return toast('Not enough in the bank', 'dn');
+  S.owned.push(id);
+  const fx = { money: -it.cost, popularity: it.pop || 0 };
+  if (it.rec) { S.recBonus = Math.min(CONFIG.recoverCapBonus, sum(S.owned.map(x => (CATALOG.gear.find(g => g.id === x) || {}).rec || 0))); fx.energy = 8; }
+  if (it.id === 'esports' || it.id === 'media') S.sponsorTier++;
+  applyEffects(fx);
+  S.upkeep = upkeepOf();
+  queueMsg('LIFE', 'PURCHASED', `${it.n} — ${money(it.cost)}. Weekly upkeep ${money(it.upkeep)}.`);
+  if (cat === 'estate' || cat === 'motors') { S.sponsorTier = Math.min(4, S.sponsorTier + 1); }
+  save(); renderAll(); toast('Bought ' + it.n, 'up');
+}
+function invest(id, amount) {
+  const t = INVESTMENTS.find(x => x.id === id);
+  const amt = Math.floor(amount);
+  if (amt < t.min) return toast('Minimum ' + money(t.min), 'dn');
+  if (S.money < amt) return toast('Not enough cash', 'dn');
+  S.money -= amt; S.spent += amt;
+  S.investments.unshift({ id, amt, cost: amt, cycle: 0, live: true });
+  if (S.investments.length > 14) S.investments.pop();
+  save(); renderAll(); toast('Allocated ' + money(amt) + ' → ' + t.n, 'up');
+}
+function investTick() {
+  const lines = [];
+  S.investments.forEach(inv => {
+    if (!inv.live) return;
+    const t = INVESTMENTS.find(x => x.id === inv.id);
+    const g = rnd(1, 2) - rnd(1, 2);                     // crude normal-ish, ~[-0.5,0.5]
+    const pctc = t.mu + g * t.risk * 1.4;
+    inv.amt = Math.max(0, Math.round(inv.amt * (1 + pctc)));
+    inv.cycle++;
+    if (t.id === 'cafe') S.popularity = clamp(S.popularity + 1, 0, 100);
+    if (inv.amt < inv.cost * .12) { inv.live = false; lines.push({ label: t.n + ' written off', val: -inv.cost }); }
+    else if (inv.cycle % 2 === 0) lines.push({ label: t.n, val: Math.round(pctc * 1000) / 10 + '%' });
+  });
+  const cashed = S.investments.filter(i => !i.live && i.amt > 0);
+  S.investments = S.investments.filter(i => i.live);
+  lines.forEach(l => logLine(l));
+  if (cashed.length) queueMsg('MONEY', 'POSITION CLOSED', 'A position went to zero. That is real money, gone.');
+}
+function cashOut(i) {
+  const inv = S.investments[i]; if (!inv) return;
+  S.money += inv.amt; S.earned += Math.max(0, inv.amt - inv.cost);
+  const d = inv.amt - inv.cost;
+  S.investments.splice(i, 1);
+  queueMsg('MONEY', 'POSITION LIQUIDATED', `${money(inv.amt)} returned to the bank. ${d >= 0 ? 'Gain' : 'Loss'} of ${money(Math.abs(d))}.`);
+  save(); renderAll(); toast((d >= 0 ? 'Profit ' : 'Loss ') + money(d), d >= 0 ? 'up' : 'dn');
+}
+
+/* ================================================================ EVENTS */
+function rollEvent() {
+  const pool = EVENTS.filter(e => !e.cond || e.cond(S)).map(e => {
+    let w = e.w;
+    if (e.id === 'nightlife' && S.age <= 18) w += 6;
+    if (e.id === 'injury_scare' && S.energy < 30) w += 10;
+    if (e.id === 'transfer_rumour' && S.windowOpen) w += 8;
+    if (e.id === 'charity' && S.money > 3e6) w += 6;
+    if (e.id === 'own_goal' && S.s.goals > 4) w -= 3;
+    if (S.popularity < 20 && ['media_row','car_offer','sponsor'].includes(e.id)) w = 0;
+    return { e, w: Math.max(0, w) };
+  }).filter(x => x.w > 0);
+  if (!pool.length || !chance(.6)) return null;
+  const ev = wpick(pool).e;
+  return { id: ev.id, tag: ev.tag, t: ev.t, o: ev.o.map(o => ({ l: o.l, fx: o.fx, out: o.out, risk: o.risk })) };
+}
+function chooseEvent(i) {
+  const ev = UI.event, o = ev.o[i];
+  const fx = { ...o.fx };
+  if (fx.yc) { } // applyEffects handles
+  applyEffects(fx, true);
+  if (fx.yc) applyEffects({ yc: fx.yc });
+  let line = o.out;
+  if (o.risk && chance(o.risk)) {
+    const inj = { n: pick(['Hamstring strain','Ankle sprain','Knee knock']), w: ri(1, 3) };
+    applyEffects({ injuryWeeks: inj.w, injuryName: inj.n });
+    line += ' It cost you: ' + inj.n.toLowerCase() + ', ' + inj.w + ' week' + (inj.w > 1 ? 's' : '') + '.';
+  }
+  queueMsg('LIFE', ev.tag, line);
+  UI.event = null; UI.modal = null; save(); renderAll();
+}
+function burst() {
+  const d = document.createElement('div');
+  d.className = 'pointer-events-none fixed inset-0 z-[80]';
+  d.style.background = 'radial-gradient(circle at 50% 45%, rgba(169,239,196,.28), transparent 55%)';
+  d.style.animation = 'fade .6s ease reverse forwards';
+  document.body.appendChild(d); setTimeout(() => d.remove(), 620);
+}
+
+/* ================================================================ SEASON END */
+function endSeason() {
+  if (S.flags.reviewShown === S.seasonNo) { UI.modal = 'review'; return renderModal(); }
+  S.flags.reviewShown = S.seasonNo;
+  const st = standings(), pos = st.findIndex(r => r.c.id === myClub().id) + 1;
+  const stars = Object.entries(S.starGoals).map(([i, v]) => ({ i: +i, ...v })).sort((a, b) => b.g - a.g);
+  const topStar = stars[0] || { g: 0, i: 0 };
+  const ratAvg = r1(avg(S.s.rating));
+  const s = { seasonNo: S.seasonNo, age: S.age, club: S.club.name, clubFake: (myClub() || {}).fake, lg: S.club.lg,
+    pos, pts: (S.table[myClub().id] || {}).pts || 0, apps: S.s.apps, goals: S.s.goals, assists: S.s.assists,
+    rating: ratAvg, y: S.s.y, r: S.s.r, boot: S.s.goals > topStar.g, poty: avg >= 7.7 && S.s.apps >= 16 && pos <= 4,
+    champion: pos === 1, promo: pos === 2, releg: pos >= 19, cup: S.cup.alive ? S.cup.stages[Math.max(0, S.cup.stage)] : 'Group stage exit' };
+  s.awards = [];
+  if (s.champion) { s.awards.push('league'); unlock('league'); S.trophies++; }
+  if (s.promo && !s.champion) { s.awards.push('league2'); unlock('promo'); S.trophies++; S.club.str = clamp(S.club.str + 3, 50, 92); }
+  if (s.releg && S.ovr < S.club.str + 10) { s.awards.push('releg'); S.club.str = clamp(S.club.str - 4, 48, 92); }
+  else if (s.releg) { s.awards.push('releg'); queueMsg('CLUB', 'YOU SAVED THEM', 'Relegated anyway. Without your numbers it would have been worse, and everybody in the building knows it.'); }
+  if (S.ovr > S.club.str + 6) { S.club.str = clamp(S.club.str + 2, 48, 94); S.flags.army = 1;
+    queueMsg('CLUB', 'YOU ARE THE TEAM', `Your ${S.ovr} rating against a ${S.club.str} squad is dragging ${S.realNames ? S.club.name : (myClub()||{}).fake} up. The board has bought two players you asked for.`); }
+  else if (S.club.str < 66 && !s.releg) S.club.str = clamp(S.club.str + 1, 48, 94);
+  if (s.releg && S.club.str < 70) S.club.str = clamp(S.club.str + 2, 48, 94);   /* parachute payments */
+  if (S.flags.cupWin) { s.awards.push('cup'); unlock('cup'); S.trophies++; S.flags.cupWin = 0; }
+  if (s.boot) { s.awards.push('boot'); unlock('boot'); S.trophies++; }
+  else if (S.s.goals >= topStar.g - 2 && S.s.goals >= 10) { s.awards.push('boot2'); unlock('boot2'); }
+  if (s.poty) { s.awards.push('poty'); unlock('poty'); S.trophies++; }
+  else if (ratAvg >= 7.3 && S.s.apps >= 12) { s.awards.push('potm'); unlock('potm'); }
+  if (S.intl.level >= 2 && S.intl.caps >= 10) unlock('intl10');
+  if (S.intl.level >= 2 && S.intl.caps >= 50) unlock('intl50');
+  S.honours.push(...s.awards.map(k => ({ k, s: S.seasonNo })));
+  S.contract.years = Math.max(0, S.contract.years - 1);
+  if (S.loan && S.week >= S.loan.until) endLoan();
+  S.history.unshift(s); S.history = S.history.slice(0, 14);
+  S.careerSeasons = (S.careerSeasons || []).concat([{ s: S.seasonNo, g: S.s.goals, a: S.s.assists, apps: S.s.apps, r: avg, v: marketValue(), pos }]);
+  UI.seasonReview = s; UI.modal = 'review';
+  const headline = s.champion ? `CHAMPIONS. ${S.realNames ? S.club.name : (myClub()||{}).fake} go up the hill with you in the eleven.`
+    : s.releg ? 'Relegated. Contracts get renegotiated in the dark.'
+    : `${ordinal(pos)} in the ${LEAGUES[S.club.lg].name}. ${S.s.goals} goals, ${S.s.assists} assists, ${ratAvg.toFixed(1)} average rating.`;
+  queueMsg('SEASON', 'SEASON ' + S.seasonNo + ' COMPLETE', headline);
+  save(); renderModal();
+}
+function ageUpSeason() {
+  S.age++;
+  const drift = S.age <= 21 ? .85 : S.age <= 23 ? .62 : S.age <= 25 ? .42 : S.age <= 27 ? .2 : S.age <= 29 ? -.1 : S.age <= 31 ? -1.0 : S.age <= 33 ? -2.0 : S.age <= 35 ? -3.2 : -4.6;
+  const head = Math.max(0, S.pot - S.ovr);
+  ATTRS.forEach(k => {
+    let d = drift * rnd(.5, 1.5) * (1 + head / 40);
+    if (S.age <= 24 && S.attrs[k] < S.pot) d += .25;
+    if (k === 'pace' && S.age >= 30) d -= .7;
+    if ((k === 'physical' || k === 'defending') && S.age >= 31) d += .35;
+    if (k === 'passing' || k === 'shooting') d += .25;
+    S.attrs[k] = clamp(Math.round(S.attrs[k] + d), 24, 99);
+  });
+  /* never let the calendar push you past potential — a season of football does that */
+  const ratAvg = r1(avg(S.s.rating.length ? S.s.rating : [6.3]));
+  recalcOvr();
+  if (S.ovr > S.pot) { const over = S.ovr - S.pot; ATTRS.slice().sort((a,b)=>S.attrs[b]-S.attrs[a]).slice(0,2).forEach(k => S.attrs[k] = clamp(S.attrs[k] - Math.ceil(over/2), 24, 99)); }
+  S.pot = clamp(S.pot + (ratAvg >= 7.4 && S.age <= 22 ? 1 : 0), 60, 99);
+  recalcOvr();
+  S.energy = S.energyCap;
+  S.popularity = clamp(S.popularity - 3 + (S.ovr > 80 ? 2 : 0), 0, 100);
+  S.favor = clamp(Math.round(55 + (S.favor - 50) * 0.45), 6, 100);   // new season, new competition, no legacy
+  setFavor(S.favor, 0);
+}
+function nextSeason() {
+  ageUpSeason();
+  S.seasonNo++; S.seasonStart += 370 * 864e5; S._sched = null;
+  buildSeason(true);
+  S.flags = { ...S.flags, paid: null }; S.offers = []; S.intl.callup = S.intl.level >= 2 && S.ovr >= 70;
+  if (S.contract.years === 0) {
+    queueMsg('CONTRACT', 'OUT OF CONTRACT', 'Your deal expired. Sign for someone or you will not be registered.');
+    S.requested = 1; maybeGenerateOffers(true);
+    UI.modal = 'freeagent';
+  } else UI.modal = null;
+  if (S.age >= CONFIG.retireAge) { UI.modal = 'retire'; }
+  save(); renderAll();
+  if (!UI.modal) toast('Season ' + (2026 + S.seasonNo - 1) + '/' + String(2026 + S.seasonNo).slice(-2) + ' — pre-season', 'up');
+}
+function forceRetire() {
+  UI.modal = 'retire'; renderModal();
+}
+function legacyGrade() {
+  const t = S.trophies, g = S.stats.goals, o = S.ovr, caps = S.intl.caps, v = (S.careerPeakValue || marketValue());
+  let sc = t * 8 + g * .35 + (o - 60) * 1.4 + caps * .7 + Math.min(30, v / 1e6 * .12);
+  if (S.badges && S.badges.league) sc += 12;
+  if (S.badges && S.badges.boot) sc += 10;
+  if (S.badges && S.badges.poty) sc += 12;
+  const grade = sc >= 165 ? 'LEGEND' : sc >= 130 ? 'WORLD CLASS' : sc >= 100 ? 'ELITE' : sc >= 72 ? 'SOLID CAREER' : sc >= 45 ? 'JOURNEYMAN' : 'UNFINISHED';
+  return { sc: Math.round(sc), grade };
+}
+
+/* ================================================================ RENDER — shared bits */
+function crest(c, cls) {
+  const col = clubColor(c);
+  return `<span class="crest ${cls||''}" style="background:linear-gradient(160deg,${col[0]},${col[1]});box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)"></span>`;
+}
+function clubColor(name) {
+  const s = String(name || ''); let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return [`hsl(${h} 62% 58%)`, `hsl(${(h + 40) % 360} 55% 34%)`];
+}
+function energyColor(p) { return p > 65 ? 'linear-gradient(90deg,#4fe08f,#a9efc4)' : p > 38 ? 'linear-gradient(90deg,#e7c14f,#f4e08c)' : 'linear-gradient(90deg,#e0565c,#f08a8a)'; }
+function bar(v, col, h) { return `<div class="bar${h ? ' tall' : ''}"><i style="width:${clamp(v,0,100)}%;background:${col}"></i></div>`; }
+function card(title, body, extra) {
+  return `<div class="card p-3 mb-2.5 ${extra||''}">${title ? `<div class="ctitle mb-2.5">${title}</div>` : ''}${body}</div>`;
+}
+function kv(l, v, cls) { return `<div class="flex items-center justify-between py-1.5"><span class="clabel">${l}</span><span class="text-[13px] font-semibold ${cls||''} fmt">${v}</span></div>`; }
+function btn(label, fn, kind, cls) { return `<button class="btn ${kind||''} ${cls||''}" onclick="${fn}">${label}</button>`; }
+function statRow(l, v, sub) {
+  return `<div class="flex items-center justify-between gap-2 py-1.5 border-b border-white/5 last:border-0">
+    <div><div class="text-[12.5px] font-semibold">${l}</div>${sub ? `<div class="text-[10.5px] text-slate-400">${sub}</div>` : ''}</div>
+    <div class="text-[13px] font-bold fmt">${v}</div></div>`;
+}
+function formDots(arr) {
+  if (!arr.length) return '<span class="text-[11px] text-slate-500">No matches played yet</span>';
+  return arr.slice(-5).map(r => {
+    const c = r >= 7.5 ? 'background:#a9efc4;color:#07281a' : r >= 6.5 ? 'background:#f2d98a;color:#332708' : 'background:#ef8686;color:#37090c';
+    return `<span class="dot" style="${c}">${r.toFixed(1).slice(0,3)}</span>`;
+  }).join('');
+}
+
+function renderAll() {
+  if (!S) return;
+  recalcOvr(); S.energyCap = energyCap();
+  renderHeader();
+  $$('.tabwrap').forEach(el => el.classList.toggle('on', el.id === 'tab-' + UI.tab));
+  $$('#dock button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
+  const fn = { home: renderHome, dev: renderDev, career: renderCareer, life: renderLife, hub: renderHub }[UI.tab];
+  const host = $('#tab-' + UI.tab); if (host && fn) host.innerHTML = fn();
+  renderModal();
+}
+const NAV = [
+  { id:'home', l:'Home', d:'M4 12 12 4l8 8v7a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z' },
+  { id:'dev',  l:'Training', d:'M12 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6m-7 9 4-4 3 2 4-5 3 3M4 20h16' },
+  { id:'career', l:'Career', d:'M9 4h6v3H9zM4 7h16v12H4zM8 12h8M8 16h5' },
+  { id:'life', l:'Lifestyle', d:'M4 9h16l-1 10H5zM8 9a4 4 0 0 1 8 0' },
+  { id:'hub',  l:'Hub', d:'M7 4h10v5a5 5 0 0 1-10 0zM9 14h6l1 6H8zM5 5h2v3H5zm12 0h2v3h-2z' }
+];
+function renderHeader() {
+  $('#hOvr').textContent = S.ovr;
+  $('#hLv').textContent = 'Lv ' + S.level;
+  const sp = $('#hSp'); sp.textContent = 'SP ' + S.sp; sp.style.opacity = S.sp ? '1' : '.45';
+  $('#hClub').textContent = S.realNames ? S.club.name : ((myClub() || {}).fake || S.club.name);
+  $('#hCrest').style.background = 'linear-gradient(160deg,' + clubColor(S.club.name).join(',') + ')';
+  $('#hDate').textContent = fmtDate(weekDate(S.week));
+  const ep = energyPct();
+  $('#hEnergyNum').textContent = ep + '%' + (S.injury ? ' · ' + S.injury.left + 'w' : '');
+  const eb = $('#hEnergyBar'); eb.style.width = ep + '%'; eb.style.background = energyColor(ep);
+  const fb = $('#hFavorBar'); fb.style.width = S.favor + '%';
+  fb.style.background = S.favor >= 75 ? 'linear-gradient(90deg,#4fe08f,#a9efc4)' : S.favor >= 40 ? 'linear-gradient(90deg,#e2b93f,#f4e08c)' : 'linear-gradient(90deg,#d9545c,#f08a8a)';
+  const rc = $('#hRoleChip'); const r = role();
+  rc.textContent = ROLE_LABEL[r]; rc.className = 'chip !text-[8.5px] role ' + (r === 'starter' ? 'starter' : r === 'sub' ? 'sub' : r === 'injured' ? 'injured' : r === 'susp' ? 'susp' : 'reserve');
+}
+
+/* ================================================================ TAB 1 — HOME */
+function renderHome() {
+  const f = fixtureNow(), sch = schedule(), r = role(), net = wageNetWeek() + sponsorWeek() - upkeepWeek();
+  const next = nextFixtures(3).map((x,i)=>({x,w:S.week+i+1}));
+  const big = isBig(f);
+  const cal = next.map(o => fixtureTile(o.x, o.w)).join('');
+  const opp = f.opp;
+  const oppName = opp ? (S.realNames ? opp.name : opp.fake) : (f.t === 'rest' ? 'No fixture' : f.t === 'final' ? 'End of season' : 'International duty');
+  const odds = opp ? chanceOfWinning(opp) : 50;
+  const objHtml = (S.objectives || []).map(o => `
+    <div class="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0">
+      <span style="width:8px;height:8px;border-radius:50%;background:${o.done ? '#a9efc4' : '#8fa5c2'}"></span>
+      <span class="flex-1 text-[12.5px]">${o.l}</span>
+      <span class="chip" style="background:rgba(255,255,255,.1);color:#cfe0f5">+${o.fw}</span>
+    </div>`).join('');
+  const seasonProg = Math.round(S.week / (sch.length - 1) * 100);
+  const drillNudge = S.drilledThisWeek === 0 && S.energy > 40
+    ? `<button class="opt mt-2" onclick="go('dev')"><div class="flex items-center justify-between"><span class="text-[12.5px] font-semibold">You have not trained this week</span><span class="chip" style="background:#a9efc4;color:#07281a">-${CONFIG.drillEnergy} energy</span></div></button>` : '';
+  return `
+  ${card('Calendar', `<div class="grid grid-cols-3 gap-1">${cal}</div>`)}
+  ${card('Current Form', `<div class="flex items-center justify-center gap-1.5">${formDots(S.form)}</div>
+     <div class="mt-2 text-center text-[10.5px] text-slate-400">Avg ${avg(S.s.rating).toFixed(2)} · ${S.s.apps} apps · ${S.s.goals}G ${S.s.assists}A</div>`)}
+  ${card('Next Fixture', `
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">${crest(oppName)}<div class="min-w-0"><div class="text-[14px] font-bold truncate uppercase font-disp tracking-wide">${oppName}</div>
+      <div class="clabel mt-0.5">${f.t === 'league' ? 'Matchweek ' + f.round + ' · ' : ''}${KIND_LABEL[f.t] || 'Rest'}${f.home ? ' · Home' : f.t==='rest'?'':' · Away'}</div></div></div>
+      <div class="text-right">${big ? '<span class="chip" style="background:#f4d67f;color:#33260a">Big Game</span>' : ''}
+      <div class="text-[10.5px] text-slate-400 mt-1">Win prob <b class="text-slate-200">${odds}%</b></div></div>
+    </div>
+    ${r==='reserve'&&!S.injury?`<div class="mt-2 text-[11.5px] text-slate-300 bg-white/5 rounded-xl p-2">You are <b>not in the squad</b>. The first team result will be simulated — you get development-squad minutes instead and one action.</div>`:''}
+    ${S.injury?`<div class="mt-2 text-[11.5px]" style="color:#f0b8b8">Out ${S.injury.left} more week(s) with ${S.injury.n}.</div>`:''}
+    ${S.susp?`<div class="mt-2 text-[11.5px]" style="color:#bcd9ff">Suspended ${S.susp} week(s).</div>`:''}
+  `)}
+  ${card('Manager Objectives', (S.objectives && S.objectives.length ? objHtml : '<div class="text-[12px] text-slate-400 text-center py-1">Targets are set once you accept the next fixture</div>') +
+    `<div class="mt-2 flex items-center justify-between"><span class="clabel">Trust</span><span class="text-[11px] text-slate-300">${S.favor}/100 → <b>${ROLE_LABEL[r]}</b></span></div>
+     ${bar(S.favor, r==='starter'?'linear-gradient(90deg,#4fe08f,#a9efc4)':r==='sub'?'linear-gradient(90deg,#e2b93f,#f4e08c)':'linear-gradient(90deg,#d9545c,#f08a8a)', true)}
+     <div class="mt-1 flex justify-between text-[9.5px] text-slate-500 font-disp uppercase tracking-wider"><span>35 sub</span><span>65 hold spot</span><span>75 start</span></div>`)}
+  <div class="grid grid-cols-2 gap-2 mb-2.5">
+    <div class="card p-2.5"><div class="clabel mb-1.5">Bank Balance</div><div class="pill ${S.money>=0?'pos':'neg'}">${money(S.money)}</div></div>
+    <div class="card p-2.5"><div class="clabel mb-1.5">Weekly Net</div><div class="pill ${net>=0?'pos':'neg'}">${money(net)}</div></div>
+  </div>
+  <div class="grid grid-cols-3 gap-2 mb-2.5">
+    ${[['Standings','standings','M7 4h10v5a5 5 0 0 1-10 0zM9 14h6l1 6H8zM5 5h2v3H5zm12 0h2v3h-2z'],
+       ['Messages','messages','M4 6h16v11H8l-4 4z'],
+       ['Social','social','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-6 3a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5m12 0a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5M4 20a4 4 0 0 1 8 0m0 0a4 4 0 0 1 8 0']].map(([a,b,d])=>{
+      const unread = b==='messages' ? S.msgs.filter(m=>!m.read).length : 0;
+      return `<button class="card !rounded-2xl py-2.5 flex flex-col items-center gap-1 relative" onclick="openModal('${b}')">
+      <svg viewBox="0 0 24 24" class="w-[18px] h-[18px]" fill="none" stroke="#dbe6f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>
+      <span class="text-[8.5px] font-disp font-bold uppercase tracking-[.12em] text-slate-200">${a}</span>
+      ${unread?`<span class="absolute top-1.5 right-2 chip !p-0 !text-[8px]" style="background:#ef8686;color:#37090c;min-width:15px;justify-content:center">${unread}</span>`:''}</button>`}).join('')}
+  </div>
+  ${card('Season', `<div class="flex items-center justify-between mb-1.5"><span class="clabel">${ordinal(myPosition())} of 20 · ${LEAGUES[S.club.lg].name}</span><span class="text-[11px] text-slate-300">${S.week}/${sch.length-1} wks</span></div>
+     ${bar(seasonProg,'linear-gradient(90deg,#7fb2f0,#bcd9ff)')}
+     <div class="mt-2.5 text-[11.5px] text-slate-400">Energy ${S.energy}/${S.energyCap} · recovery +${recovPerWeek()}/wk · form ${avg(S.form).toFixed(1)}</div>`)}
+  <div class="mt-3 mb-2">
+    ${f.t==='final' ? btn('Season Review','openModal(\'review\')','solid')
+      : f.t==='rest' ? `<div class="grid grid-cols-2 gap-2">${btn('Rest Week',"resolving('RESOLVING WEEK',()=>advanceWeek(true))",'','')}<button class="btn" onclick="openModal('training')">Train</button></div>`
+      : `<button class="btn solid !text-[13px] !py-4" onclick="proceed()">${r==='injured'?'SIMULATE — YOU ARE OUT':r==='susp'?'SIMULATE — SUSPENDED':'PROCEED TO NEXT MATCH'}</button>
+         <div class="mt-2 grid grid-cols-2 gap-2">${btn('Train First',"go('dev')")}${btn('Rest Week','restAndSkip()')}</div>`}
+  </div>
+  ${drillNudge}`;
+}
+function fixtureTile(f, wk) {
+  const dt = weekDate(wk ?? S.week);
+  if (!f || f.t === 'rest' || !f.opp) return `<div class="rounded-xl bg-white/5 border border-white/10 p-2 text-center"><div class="text-[9px] text-slate-500 font-disp uppercase">${fmtShort(dt)}</div><div class="text-[10px] text-slate-500 mt-2">${f && f.t==='final' ? 'Final day' : 'No game'}</div></div>`;
+  const nm = S.realNames ? f.opp.name : f.opp.fake;
+  return `<div class="rounded-xl bg-white/5 border border-white/10 p-2 text-center">
+    <div class="text-[9px] text-slate-400 font-disp uppercase tracking-wide">${fmtShort(dt)}</div>
+    <div class="my-1.5 flex justify-center">${crest(nm)}</div>
+    <div class="text-[10px] font-semibold leading-tight">${nm.split(' ').slice(0,2).join(' ')}</div>
+    <div class="mt-1 text-[11px] ${f.home?'text-slate-200':'text-slate-400'}">${f.home?'⌂':''}</div></div>`;
+}
+function chanceOfWinning(opp) {
+  const me = myClub(); if (!me) return 50;
+  const bonus = (role() === 'starter' ? 4 : role() === 'sub' ? 1 : -3) + (avg(S.form) - 6.6) * 5 + S.favor / 25;
+  return clamp(Math.round(50 + (me.str - opp.str) * 1.9 + bonus), 5, 92);
+}
+function proceed() {
+  if (UI.busy) return;
+  S.bigMatch = isBig(fixtureNow());
+  if (!S.objectives) S.objectives = makeObjectives();
+  UI.busy = true; setTimeout(() => UI.busy = false, 300);
+  startMatch();
+}
+function restAndSkip() { if (confirm('Rest this week? You keep energy but the manager notices.')) { S.objectives = null; resolving('RESOLVING WEEK', () => advanceWeek(true)); } }
+function resolving(label, done) {
+  const days = [0,1,2,3].map(i => `<div class="rounded-xl bg-white/10 border border-white/15 py-2 text-center" style="animation:pop .4s ease ${i*140}ms both">
+    <div class="text-[15px] font-disp font-bold">${S.week + 1 + i}</div><div class="text-[8px] uppercase tracking-wider text-slate-400 font-disp">wk</div></div>`).join('');
+  $('#modalHost').innerHTML = `<div class="veil"><div class="sheet card p-4 text-center">
+    <div class="ctitle mb-1">${label}</div><div class="text-[10.5px] text-slate-400 mb-3">Markets, tables and other clubs' results</div>
+    <div class="grid grid-cols-4 gap-2 mb-3">${days}</div>
+    <div class="bar"><i style="width:100%;background:linear-gradient(90deg,#7fb2f0,#a9efc4);transition:width 1.1s ease" id="resBar"></i></div></div></div>`;
+  setTimeout(() => { const b = $('#resBar'); if (b) b.style.width = '8%'; }, 30);
+  setTimeout(() => { $('#modalHost').innerHTML = ''; done(); }, 1150);
+}
+
+/* ================================================================ TAB 2 — PERFORMANCE & TRAINING */
+function renderDev() {
+  const ceiling = attrCeiling();
+  const attrs = ATTRS.map(k => {
+    const v = S.attrs[k], maxed = v >= ceiling;
+    return `<button class="card !rounded-2xl p-2.5 text-left" onclick="buyAttr('${k}')">
+      <div class="flex items-center justify-between"><span class="clabel">${ATTR_LABEL[k]}</span>
+        <span class="chip ${maxed?'':'starter'}" style="${maxed?'background:rgba(255,255,255,.1);color:#9fb3cd':''}">${maxed?'MAX':'+1 · '+(v>=80?2:1)+' SP'}</span></div>
+      <div class="flex items-end gap-2 mt-1"><div class="font-disp font-bold text-[26px] leading-none fmt">${v}</div>
+        <div class="text-[10px] text-slate-500 mb-0.5">/ ${ceiling}</div></div>
+      ${bar(clamp((v - 24) / (ceiling - 24) * 100, 3, 100),'linear-gradient(90deg,#4fe08f,#a9efc4)')}
+      <div class="text-[10px] text-slate-400 mt-1.5 leading-snug">${ATTR_USE[k]}</div></button>`;
+  }).join('');
+  const drills = DRILLS.map(d => {
+    const can = S.energy >= d.cost && !S.injury;
+    return `<button class="opt ${can?'':'!opacity-40 !pointer-events-none'}" onclick="UI.modal='training';renderModal()">
+      <div class="flex items-center justify-between gap-2">
+        <div><div class="text-[13px] font-bold font-disp uppercase tracking-wide">${d.n}</div>
+          <div class="text-[10.5px] text-slate-400 mt-0.5">${d.d}</div></div>
+        <div class="text-right"><div class="chip" style="background:rgba(255,255,255,.12);color:#e8f1ff">-${d.cost}</div>
+          <div class="text-[9.5px] text-slate-500 mt-1">${ATTR_LABEL[d.a]}</div></div></div></button>`;
+  }).join('');
+  const log = (S.s.drillLog || []).slice(0, 5).map(x => statRow(x.n, `<span class="chip ${x.g==='A'?'starter':x.g==='B'?'sub':'reserve'}">${x.g}</span>`, `+${x.pts} ${x.a}`)).join('');
+  return `
+  ${card('Player Profile', `
+    <div class="flex items-center gap-3">
+      <div class="relative w-14 h-14 rounded-2xl grid place-items-center" style="background:linear-gradient(160deg,#22384f,#0d1b2b);border:1px solid var(--edge)">
+        <span class="font-disp font-bold text-[19px]">${S.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>
+        <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 pill neu !py-0.5 !px-2 !text-[11px]">${S.ovr}</span></div>
+      <div class="min-w-0 flex-1"><div class="font-disp font-bold text-[15px] uppercase truncate">${S.name}</div>
+        <div class="text-[11px] text-slate-400">${S.pos} · ${S.nat} · ${S.age} yrs</div>
+        <div class="text-[11px] text-slate-400">${S.realNames?S.club.name:((myClub()||{}).fake||S.club.name)} · ${ordinal(myPosition())}</div></div>
+      <div class="text-right"><div class="clabel">OVR</div><div class="font-disp font-bold text-[22px] fmt">${S.ovr}</div>
+        <div class="text-[9.5px] ${S.ovr>=S.pot-3?'text-emerald-300':'text-slate-500'}">POT ${S.pot}</div></div>
+    </div>
+    <div class="mt-2.5 flex items-center gap-2"><span class="clabel">XP</span>${bar(S.xp/(S.xpNext||350)*100,'linear-gradient(90deg,#c8a8f0,#e8dcff)')}<span class="text-[10px] text-slate-400">Lv ${S.level}</span></div>`)}
+  ${card('Attributes', `<div class="statgrid">${attrs}</div>
+    <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400"><span>Skill points</span><span class="chip starter">${S.sp} available</span></div>`)}
+  ${card('Season Output', `<div class="grid grid-cols-3 gap-2 text-center">
+    ${[['Apps',S.s.apps],['Goals',S.s.goals],['Assists',S.s.assists],['Mins',S.s.mins],['Avg Rating',avg(S.s.rating).toFixed(2)],['Y / R',S.s.y+' / '+S.s.r]]
+      .map(([l,v])=>`<div class="rounded-xl bg-white/5 border border-white/10 py-2"><div class="clabel">${l}</div><div class="font-disp font-bold text-[17px] fmt mt-0.5">${v}</div></div>`).join('')}
+    </div>`)}
+  ${card('Training Centre', `
+    <div class="text-[11.5px] text-slate-400 mb-2 text-center">${S.injury?'Rehab week — drills locked until cleared.':`Energy ${S.energy}/${S.energyCap} · drills ${S.drilledThisWeek}/${DRILLS_PER_WEEK} · season budget ${(S.growth?S.growth.budget-S.growth.used:DEV_BUDGET)} left`}</div>
+    <div class="grid gap-2">${drills}</div>
+    ${log?`<div class="mt-3">${log}</div>`:''}`)}
+  ${card('Skill Tree', `<div class="text-[11px] text-slate-400 mb-2 text-center">Spend SP. Above ${ceiling} an attribute needs seasons, not points.</div>
+    <div class="grid gap-1.5">${SKILL_TREE.map(t=>{
+      const have=(S.flags.nodes||{})[t.id];
+      const ok=!have && S.sp>=t.sp && (S.attrs[t.a]>=t.need);
+      return `<button class="opt !py-2 ${ok?'':'!opacity-45'}" onclick="buyNode('${t.id}')">
+        <div class="flex items-center justify-between gap-2"><div><div class="text-[12.5px] font-bold">${t.n}</div><div class="text-[10px] text-slate-400">${t.d}</div></div>
+        <span class="chip ${have?'starter':''}" style="${have?'background:#a9efc4;color:#07281a':'background:rgba(255,255,255,.12);color:#e8f1ff'}">${have?'OWNED':t.sp+' SP'}</span></div></button>`}).join('')}
+    </div>`)}
+  ${card('Career Totals', statRow('Appearances', S.stats.apps, S.s.starts+' starts · '+S.s.sub+' sub · '+S.s.bench+' unused')+
+    statRow('Goals / Assists', S.stats.goals+' / '+S.stats.assists, `${(S.stats.goals/Math.max(1,S.s.apps*90)).toFixed(2)} per 90 this season`)+
+    statRow('Passing', S.stats.passOk+'/'+S.stats.pass, Math.round(S.stats.passOk/Math.max(1,S.stats.pass)*100)+'% complete')+
+    statRow('Duels', S.stats.duelWin+'/'+S.stats.duels, Math.round(S.stats.duelWin/Math.max(1,S.stats.duels)*100)+'% won')+
+    statRow('Discipline', S.stats.y+'Y '+S.stats.r+'R')+statRow('Market Value', money(marketValue()), 'Age '+S.age+' · '+S.contract.years+'y left'))}
+  `;
+}
+const ATTR_USE = {
+  pace:'Beats men in 1v1 and transition prompts.', shooting:'Decides shots and headers on goal.',
+  passing:'Creates assists, avoids turnovers in the press.', dribbling:'Keeps the ball under pressure, draws fouls.',
+  defending:'Cuts the opposition chance count. Big for CB/CM.', physical:'Sets your energy cap and stamina retention.'
+};
+const SKILL_TREE = [
+  { id:'n1', n:'First Touch', a:'passing', need:55, sp:2, d:'+1 Passing permanently and +3% safety on first-time passes.' },
+  { id:'n2', n:'Late Runner', a:'shooting', need:60, sp:3, d:'+1 Shooting and a bonus chance of arriving in the box for a second prompt.' },
+  { id:'n3', n:'Breakaway', a:'pace', need:62, sp:2, d:'+1 Pace. Transition prompts gain +6% success.' },
+  { id:'n4', n:'Hold-Up Play', a:'physical', need:58, sp:2, d:'+1 Physical and +4 energy cap efficiency on hard grounds.' },
+  { id:'n5', n:'Press-Proof', a:'dribbling', need:60, sp:3, d:'+1 Dribbling. Turns under pressure become half as risky.' },
+  { id:'n6', n:'Reading the Game', a:'defending', need:52, sp:2, d:'+1 Defending. Own goals and defensive errors 20% less likely.' },
+  { id:'n7', n:'Ice in the Veins', a:'shooting', need:72, sp:4, d:'No negative modifier from big-game pressure or low energy in the 80th minute.' },
+  { id:'n8', n:'Captain Material', a:'passing', need:75, sp:4, d:'+6 chemistry floor and manager trust falls 25% slower.' }
+];
+function buyNode(id) {
+  const t = SKILL_TREE.find(x => x.id === id);
+  S.flags.nodes = S.flags.nodes || {};
+  if (S.flags.nodes[id]) return toast('Already learned', 'dn');
+  if (S.sp < t.sp) return toast('Not enough SP', 'dn');
+  if (S.attrs[t.a] < t.need) return toast(`Needs ${t.need} ${ATTR_LABEL[t.a]}`, 'dn');
+  S.sp -= t.sp; S.flags.nodes[id] = 1;
+  applyEffects({ attrs:{ [t.a]:1 }, favor: t.id==='n8'?2:0, chemistry: t.id==='n8'?6:0 });
+  queueMsg('TRAINING', 'SKILL LEARNED', t.n + ' is now part of how you play.');
+  save(); renderAll(); toast('Learned ' + t.n, 'up');
+}
+
+/* ================================================================ TAB 3 — CAREER & AGENT */
+function renderCareer() {
+  const ag = AGENTS.find(a => a.id === S.agent), val = marketValue();
+  const agents = AGENTS.map(a => {
+    const on = S.agent === a.id;
+    return `<button class="opt !py-2 ${on?'!border-emerald-200/40':''}" onclick="hireAgent('${a.id}')">
+      <div class="flex items-center justify-between gap-2"><div class="min-w-0">
+        <div class="text-[12.5px] font-bold">${a.n}</div><div class="text-[10.5px] text-slate-400 leading-snug">${a.d}</div></div>
+        <div class="text-right shrink-0"><div class="chip ${on?'starter':''}" style="${on?'':'background:rgba(255,255,255,.12);color:#e8f1ff'}">${a.fee?money(a.fee)+'/wk':'free'}</div>
+        <div class="text-[9.5px] text-slate-500 mt-1">${Math.round(a.cut*100)}% cut · tier ${a.tierMax}</div></div></div></button>`;
+  }).join('');
+  const offers = S.offers.length ? S.offers.map(o => `
+    <div class="card flat p-3 mb-2">
+      <div class="flex items-center gap-2 mb-2">${crest(o.fake||o.club)}
+        <div class="min-w-0 flex-1"><div class="text-[13px] font-bold uppercase font-disp tracking-wide truncate">${S.realNames?o.club:o.fake}</div>
+        <div class="text-[10px] text-slate-400">${o.lgName} · ${o.project}</div></div>
+        <div class="pill ${o.wage>S.contract.wage?'pos':'neu'} !text-[11px] !py-1">${o.wage>S.contract.wage?'▲':'='} ${money(o.wage)}/w</div></div>
+      <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px]">
+        <div class="flex justify-between"><span class="text-slate-400">Years</span><b>${o.years}</b></div>
+        <div class="flex justify-between"><span class="text-slate-400">Fee</span><b>${money(o.fee)}</b></div>
+        <div class="flex justify-between"><span class="text-slate-400">Signing</span><b>${money(o.bonus)}</b></div>
+        <div class="flex justify-between"><span class="text-slate-400">Role</span><b class="uppercase">${o.role}</b></div>
+      </div>
+      ${o.clause?`<div class="mt-1.5 chip" style="background:#a9efc4;color:#07281a">Starter guarantee in contract</div>`:''}
+      <div class="grid grid-cols-3 gap-1.5 mt-2.5">
+        ${btn('Accept',`acceptOffer('${o.id}')`,'solid tiny')}
+        ${btn('Counter',`counterOffer('${o.id}')`,'tiny')}
+        ${btn('Reject',`rejectOffer('${o.id}')`,'danger tiny')}</div></div>`).join('')
+    : `<div class="text-[12px] text-slate-400 text-center py-2">No live offers. ${S.windowOpen?'The window is open — raise your stock or hire a better agent.':'A window opens in '+Math.max(1,(S.week<8?8-S.week:26-S.week))+' weeks.'}</div>`;
+  const ladder = [['Youth squad',66],['Senior call-up',72],['First-team regular',79],['Captain',86]];
+  return `
+  ${card('Contract Status', `
+    <div class="grid grid-cols-2 gap-2 mb-2">
+      <div><div class="clabel">Weekly Wage</div><div class="font-disp font-bold text-[17px] fmt">${money(S.contract.wage)}</div>
+        <div class="text-[10px] text-slate-400">net ${money(wageNetWeek())} after ${Math.round(TAX*100)}% tax</div></div>
+      <div><div class="clabel">Time Left</div><div class="font-disp font-bold text-[17px]">${S.contract.years} ${S.contract.years===1?'yr':'yrs'}</div>
+        <div class="text-[10px] ${S.contract.years<=1?'text-rose-300':'text-slate-400'}">${S.contract.years<=1?'Expires this summer':'Bonus '+money(S.contract.bonus)}</div></div>
+    </div>
+    ${S.contract.clause?`<div class="chip mb-2" style="background:#a9efc4;color:#07281a">Squad-role clause: guaranteed ${S.contract.clause}</div>`:''}
+    <div class="flex items-center justify-between text-[11px] text-slate-400 border-t border-white/5 pt-2 mt-1">
+      <span>Transfer value</span><span class="font-disp font-bold text-[15px] text-slate-100 fmt">${money(val)}</span></div>
+    <div class="grid grid-cols-3 gap-1.5 mt-2.5">${btn('Renew',`renewContract()`,'tiny')}${btn('Request Loan',`requestTransfer('loan')`,'tiny')}${btn('Request Transfer',`requestTransfer('transfer')`,'danger tiny')}</div>`)}
+  ${card('Transfer Inbox', offers)}
+  ${card('Your Agent', `<div class="text-[11.5px] text-slate-300 mb-2">${ag.n} · retainer ${ag.fee?money(ag.fee)+'/week':'none'} · commission ${Math.round(ag.cut*100)}%</div>
+    <div class="grid gap-1.5">${agents}</div>`)}
+  ${card('International', `
+    <div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="text-[13px] font-bold uppercase font-disp">${S.nat}</span>
+      <span class="chip ${S.intl.level>=2?'starter':'reserve'}">${['Not selected','Youth squad','Senior international','First-team regular','Captain'][S.intl.level]}</span></div>
+      <div class="text-right text-[11px] text-slate-400">${S.intl.caps} caps<div class="text-[13px] font-bold text-slate-100">${S.intl.goals} goals</div></div></div>
+    <div class="grid grid-cols-4 gap-1 mb-2">${ladder.map(([l,need],i)=>`<div class="rounded-lg px-1 py-1.5 text-center" style="background:${S.intl.level>i?'rgba(169,239,196,.18)':'rgba(255,255,255,.05)'}">
+      <div class="text-[8.5px] uppercase font-disp tracking-wide ${S.intl.level>i?'text-emerald-200':'text-slate-400'}">${l.split(' ')[0]}</div>
+      <div class="text-[9.5px] text-slate-500">${need} OVR</div></div>`).join('')}</div>
+    <div class="text-[11px] text-slate-400">Needs OVR ${S.intl.level<1?66:S.intl.level===1?72:S.intl.level===2?79:86} ${S.intl.level===1?'and 55 trust':''}. Duty costs energy and can annoy your club manager — that is the trade.</div>`)}
+  ${card('Move History', (S.transferHistory||[]).length ? S.transferHistory.slice(0,6).map(t=>statRow('S'+t.s, money(t.fee), `${t.kind} → ${t.to} · ${money(t.wage)}/week`)).join('') : '<div class="text-[12px] text-slate-400 text-center py-1">No moves yet. You are a '+(S.realNames?S.club.name:(myClub()||{}).fake)+' player.</div>')}
+  `;
+}
+function counterOffer(id) {
+  const o = S.offers.find(x => x.id === id), ag = AGENTS.find(a => a.id === S.agent);
+  const ok = chance(.35 + ag.speed * .16);
+  if (!ok) { o.wage = Math.round(o.wage * .96); queueMsg('MARKET','COUNTER FAILED', `${o.club} held firm and trimmed the offer. Your agent blames you, you blame him.`);
+    toast('Counter rejected — wage trimmed', 'dn'); }
+  else { o.wage = Math.round(o.wage * 1.16); o.years = Math.min(6, o.years + 1); o.bonus = Math.round(o.bonus * 1.22);
+    if (chance(.4)) o.clause = 'starter';
+    queueMsg('MARKET','COUNTER ACCEPTED', `${o.club} came up to ${money(o.wage)} per week${o.clause?' with a starter clause':''}.`);
+    toast('Counter landed: ' + money(o.wage) + '/w', 'up'); }
+  save(); renderAll();
+}
+function rejectOffer(id) {
+  const o = S.offers.find(x => x.id === id);
+  S.offers = S.offers.filter(x => x.id !== id);
+  applyEffects({ popularity: -1, favor: S.flags.requested ? -3 : 1 });
+  queueMsg('MARKET', 'OFFER DECLINED', `${o.club} told to look elsewhere. ${S.flags.requested?'The board noticed the timing.':''}`);
+  save(); renderAll();
+}
+
+/* ================================================================ TAB 4 — LIFESTYLE & FINANCE */
+function renderLife() {
+  const cats = UI.lifeCat || 'estate';
+  const list = (CATALOG[cats] || []).map(it => {
+    const owned = S.owned.includes(it.id), afford = S.money >= it.cost, gate = (it.min || 0) > S.popularity;
+    return `<button class="opt ${owned||afford&&!gate?'':'!opacity-45'}" onclick="buyItem('${cats}','${it.id}')">
+      <div class="flex items-center justify-between gap-2">
+        <div class="min-w-0"><div class="text-[13px] font-bold font-disp uppercase tracking-wide">${it.n}</div>
+          <div class="text-[10.5px] text-slate-400 mt-0.5 leading-snug">${it.d}</div>
+          <div class="flex gap-1.5 mt-1.5 flex-wrap">${it.pop?`<span class="chip" style="background:rgba(255,255,255,.12);color:#e8f1ff">+${it.pop} popularity</span>`:''}
+            ${it.rec?`<span class="chip" style="background:rgba(255,255,255,.12);color:#e8f1ff">+${it.rec} recovery</span>`:''}
+            ${it.upkeep?`<span class="chip" style="background:rgba(239,134,134,.2);color:#ffd9d9">-${money(it.upkeep)}/wk</span>`:''}
+            ${gate&&!owned?`<span class="chip reserve">needs ${it.min} pop</span>`:''}</div></div>
+        <div class="text-right shrink-0">${owned?`<span class="chip starter">Owned</span>`:`<span class="pill ${afford?'neu':'neg'} !py-1 !text-[12px]">${money(it.cost)}</span>`}</div>
+      </div></button>`;
+  }).join('');
+  const inv = S.investments.length ? S.investments.map((x, i) => {
+    const t = INVESTMENTS.find(v => v.id === x.id), d = x.amt - x.cost, pc = Math.round(d / x.cost * 100);
+    return `<div class="flex items-center justify-between gap-2 py-2 border-b border-white/5 last:border-0">
+      <div><div class="text-[12.5px] font-bold">${t.n}</div><div class="text-[10px] text-slate-400">put in ${money(x.cost)} · cycle ${x.cycle}/4</div></div>
+      <div class="text-right"><div class="text-[13px] font-bold fmt ${d>=0?'':'text-rose-300'}">${money(x.amt)}</div>
+        <div class="text-[10px] ${d>=0?'text-emerald-300':'text-rose-300'}">${d>=0?'+':''}${pc}%</div></div>
+      <button class="btn tiny !px-2.5" onclick="cashOut(${i})">Sell</button></div>`;
+  }).join('') : '<div class="text-[12px] text-slate-400 text-center py-1">No open positions. Capital left idle loses to your lifestyle.</div>';
+  const net = wageNetWeek() + sponsorWeek() - upkeepWeek();
+  return `
+  ${card('Balance Sheet', `
+    <div class="pill ${S.money>=0?'pos':'neg'} mb-2.5">${money(S.money)}</div>
+    ${statRow('Wage (net / week)', money(wageNetWeek()))}
+    ${statRow('Sponsorship', money(sponsorWeek()), 'scales with popularity & owned lifestyle')}
+    ${statRow('Upkeep', '<span class="text-rose-300">-'+money(upkeepWeek())+'</span>', 'properties, cars, staff, agent')}
+    ${statRow('Weekly net', `<b class="${net>=0?'':'text-rose-300'}">${money(net)}</b>`)}
+    ${statRow('Career earnings', money(S.earned), 'spent ' + money(S.spent))}`)}
+  ${card('Marketplace', `
+    <div class="seg grid-cols-3 mb-2.5">
+      ${['estate','motors','gear'].map(c=>`<button class="${cats===c?'on':''}" onclick="UI.lifeCat='${c}';renderAll()">${c==='estate'?'Estates':c==='motors'?'Motors':'Performance'}</button>`).join('')}
+    </div>
+    <div class="grid gap-2">${list}</div>`)}
+  ${card('Portfolio', `
+    <div class="text-[10.5px] text-slate-400 text-center mb-2">Marked to market every 4 weeks · ${CATALOG.gear.length?'':''}recovery bonus ${S.recBonus}/${CONFIG.recoverCapBonus}</div>
+    <div class="grid gap-1.5 mb-2.5">${INVESTMENTS.map(t=>`<button class="opt !py-2" onclick="UI.invPick='${t.id}';UI.modal='invest';renderModal()">
+      <div class="flex items-center justify-between gap-2"><div><div class="text-[12.5px] font-bold">${t.n}</div><div class="text-[10px] text-slate-400">${t.d}</div></div>
+      <div class="text-right"><div class="text-[10px] text-slate-400">min ${money(t.min)}</div>
+      <div class="chip" style="background:rgba(255,255,255,.12);color:#e8f1ff">±${Math.round(t.risk*100)}%</div></div></div></button>`).join('')}</div>
+    ${inv}`)}
+  ${card('Recovery & Fitness', statRow('Weekly recovery', '+'+recovPerWeek(), 'base '+CONFIG.recoverBase+' · gear +'+S.recBonus)+
+    statRow('Energy cap', S.energyCap, 'Physical '+S.attrs.physical)+
+    statRow('Low-energy penalty', energyPct()<CONFIG.lowEnergyPct?'ACTIVE −12% checks':'inactive','below '+CONFIG.lowEnergyPct+'% everything gets hard')+
+    statRow('Injury mitigation', S.owned.includes('physio')?'Physio retainer −45%':'none','plus sleep lab for travel'))}
+  `;
+}
+
+/* ================================================================ TAB 5 — HUB */
+function renderHub() {
+  const tab = UI.hubTab || 'table';
+  const st = standings();
+  const rows = st.map((row, i) => {
+    const me = row.c.name === S.club.name;
+    const zone = i === 0 ? '#a9efc4' : i < 4 ? 'rgba(169,239,196,.35)' : i < 6 ? 'rgba(127,178,240,.35)' : i >= 17 ? 'rgba(239,134,134,.4)' : 'transparent';
+    return `<div class="flex items-center gap-2 py-1.5 ${me?'rounded-lg px-1.5':''}" style="${me?'background:rgba(169,239,196,.12);border-left:2px solid #a9efc4':''}">
+      <span class="w-5 text-[11px] text-slate-400 fmt text-right">${i+1}</span>
+      <span style="width:3px;height:16px;border-radius:2px;background:${zone}"></span>
+      ${crest(S.realNames?row.c.name:row.c.fake,'')}
+      <span class="flex-1 text-[12px] truncate ${me?'font-bold':''}">${S.realNames?row.c.name:row.c.fake}</span>
+      <span class="w-6 text-[11px] text-slate-400 fmt">${row.t.p}</span>
+      <span class="w-8 text-[11px] text-slate-400 fmt">${row.t.gf-row.t.ga>=0?'+':''}${row.t.gf-row.t.ga}</span>
+      <span class="w-7 text-[12.5px] font-bold fmt text-right">${row.t.pts}</span></div>`;
+  }).join('');
+  const scorers = STARS.map((s, i) => ({ n: S.realNames ? s.n : s.f, p: s.p, club: s.club, g: (S.starGoals[i]||{g:0}).g, a: (S.starGoals[i]||{a:0}).a, me: false, ovr: s.ovr }))
+    .concat([{ n: S.name, p: S.pos, club: S.club.name, g: S.stats.goals, a: S.stats.assists, me: true, ovr: S.ovr }])
+    .sort((x, y) => y.g - x.g || y.a - x.a).slice(0, 12);
+  const boot = scorers.map((s, i) => `<div class="flex items-center gap-2 py-1.5 ${s.me?'rounded-lg px-1.5':''}" style="${s.me?'background:rgba(244,214,127,.14);border-left:2px solid #f4d67f':''}">
+    <span class="w-5 text-[11px] text-slate-400 fmt text-right">${i+1}</span>
+    <span class="chip ${['ST','LW','RW','CAM'].includes(s.p)?'reserve':'susp'} !text-[8px] !py-1">${s.p}</span>
+    <span class="flex-1 text-[12px] truncate ${s.me?'font-bold':''}">${s.n}</span>
+    <span class="text-[10px] text-slate-500 truncate max-w-[70px]">${s.ovr}</span>
+    <span class="w-8 text-right text-[13px] font-bold fmt">${s.g}</span>
+    <span class="w-8 text-right text-[11px] text-slate-400 fmt">${s.a}A</span></div>`).join('');
+  const honours = Object.keys(HONOURS).filter(k => S.badges && S.badges[k]);
+  const badges = honours.length ? `<div class="grid grid-cols-3 gap-2">${honours.map(k => `
+    <div class="rounded-xl p-2 text-center" style="background:linear-gradient(180deg,rgba(244,214,127,.16),rgba(255,255,255,.04));border:1px solid rgba(244,214,127,.28)">
+      <div class="text-[17px]">🏆</div><div class="text-[9.5px] font-disp font-bold uppercase tracking-wide mt-1">${HONOURS[k]}</div>
+      <div class="text-[9px] text-slate-400">S${S.badges[k]}</div></div>`).join('')}</div>`
+    : '<div class="text-[12px] text-slate-400 text-center py-2">Empty. Nobody remembers a career with an empty cabinet.</div>';
+  const hist = S.history.length ? S.history.map(h => `<div class="py-2 border-b border-white/5 last:border-0">
+      <div class="flex items-center justify-between"><span class="text-[12px] font-bold">Season ${h.s} · ${S.realNames?h.club:h.clubFake}</span>
+        <span class="text-[11px] text-slate-400">${ordinal(h.pos)} · ${h.pts} pts</span></div>
+      <div class="text-[11px] text-slate-400 mt-0.5">${h.apps} apps · ${h.goals}G ${h.assists}A · rating ${h.rating.toFixed(2)}${h.awards&&h.awards.length?' · '+h.awards.map(a=>HONOURS[a]).join(', '):''}</div></div>`).join('')
+    : '<div class="text-[12px] text-slate-400 text-center py-2">No completed seasons yet.</div>';
+  const world = Object.keys(LEAGUES).map(lg => {
+    const clubs = parseClubs(lg);
+    return `<div class="mb-2"><div class="clabel mb-1.5">${LEAGUES[lg].name} · ${LEAGUES[lg].country}</div>
+      <div class="grid grid-cols-2 gap-1.5">${clubs.slice(0, 6).map(c => `<div class="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5">
+        ${crest(S.realNames?c.name:c.fake)}<div class="min-w-0"><div class="text-[11px] font-semibold truncate">${S.realNames?c.name:c.fake}</div>
+        <div class="text-[9.5px] text-slate-500">str ${c.str}</div></div></div>`).join('')}</div></div>`;
+  }).join('');
+  return `
+  ${card('League Table', `<div class="divide-soft">${rows}</div>
+    <div class="mt-2 flex justify-between text-[9px] uppercase tracking-wider text-slate-500 font-disp">
+      <span><i style="display:inline-block;width:6px;height:6px;background:#a9efc4;border-radius:1px;margin-right:3px"></i>Title</span>
+      <span><i style="display:inline-block;width:6px;height:6px;background:rgba(127,178,240,.6);border-radius:1px;margin-right:3px"></i>Europe</span>
+      <span><i style="display:inline-block;width:6px;height:6px;background:rgba(239,134,134,.8);border-radius:1px;margin-right:3px"></i>DROP</span></div>`)}
+  ${card('Golden Boot Race', `<div class="flex items-center gap-2 text-[10px] text-slate-500 mb-1 px-1"><span class="w-5"></span><span class="w-[26px]"></span><span class="flex-1">Player</span><span class="w-[26px]">OVR</span><span class="w-8">G</span><span class="w-8">A</span></div>${boot}`)}
+  ${card('Trophy Room', `<div class="flex items-center justify-between mb-2"><span class="clabel">Cabinet</span><span class="pill gold !py-1 !text-[11px]">${S.trophies} trophies</span></div>${badges}`)}
+  ${card('Season History', hist)}
+  ${card('The World', `<div class="text-[11px] text-slate-400 mb-2">Live strength ratings across ${Object.keys(LEAGUES).length} leagues and ${sum(Object.keys(LEAGUES).map(l=>LEAGUES[l].clubs.length))} clubs.</div>${world}`)}
+  `;
+}
+
+/* ================================================================ MODALS */
+function openModal(k) { UI.modal = k; renderModal(); }
+function closeModal() { UI.modal = null; renderModal(); if (UI.tab === 'home') renderAll(); }
+function go(t) { UI.tab = t; UI.modal = null; $('#scroll').scrollTop = 0; renderAll(); }
+function modalShell(title, sub, body, foot, style) {
+  return `<div class="veil" onclick="if(event.target===this)${title==='MATCHDAY'||title==='MATCH REPORT'?'':'closeModal()'}">
+    <div class="sheet card p-3.5" style="${style||''}">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <div class="min-w-0"><div class="ctitle !text-left">${title}</div>${sub?`<div class="text-[10.5px] text-slate-400 mt-0.5">${sub}</div>`:''}</div>
+        ${title==='MATCHDAY'||title==='MATCH REPORT'?'':`<button onclick="closeModal()" class="w-7 h-7 rounded-full bg-white/10 grid place-items-center text-[13px] leading-none">×</button>`}
+      </div>${body}
+      ${foot?`<div class="mt-3">${foot}</div>`:''}
+    </div></div>`;
+}
+function renderModal() {
+  const host = $('#modalHost');
+  if (!S || !UI.modal) { host.innerHTML = ''; return; }
+  const k = UI.modal;
+  let html = '';
+
+  if (k === 'match') {
+    const m = S.match;
+    const e = m.script[m.idx];
+    const lines = m.log.slice(-7).map(l => `<div class="logline tick ln pl-2.5 ${l.band==='clinical'?'!text-emerald-200':''} ${l.band==='miss'||l.band==='error'?'!text-rose-200':''}">
+      <span class="text-slate-500 text-[10px] font-disp">${l.min||m.minute}'</span> ${esc(l.t)}</div>`).join('');
+    let foot;
+    if (e && e.k === 'prompt') {
+      foot = `<div class="mb-1.5 flex items-center justify-between"><span class="clabel">Choose — ${e.minute}'</span>
+        <span class="text-[10px] text-slate-400">${m.role==='reserve'?'development squad':'your read of the game'}</span></div>
+        <div class="grid gap-1.5">${e.src.o.map((o, i) => {
+          const pc = checkSuccess(S.attrs[o.s], o.d).pc;
+          return `<button class="opt" onclick="chooseOption(${i})">
+            <div class="flex items-center justify-between gap-2"><span class="text-[13px] font-semibold">${o.l}</span>
+              <span class="chip" style="background:${pc>=70?'#a9efc4':pc>=52?'#f2d98a':'#ef8686'};color:#0b1520">${pc}%</span></div>
+            <div class="mt-1 text-[10px] text-slate-400 uppercase tracking-wider font-disp">${ATTR_LABEL[o.s]} · ${o.d>8?'high risk':o.d>0?'contested':'safe'}</div></button>`;
+        }).join('')}</div>`;
+    } else {
+      foot = `<button class="btn solid" onclick="matchTick()">${!e||m.idx>=m.script.length?'FULL TIME':'NEXT'}</button>
+        <button class="btn tiny mt-2" onclick="S.match.idx=S.match.script.length-1;renderModal()">Simulate the rest</button>`;
+    }
+    html = `<div class="veil"><div class="sheet card p-3.5 flex flex-col" style="height:86%">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-1.5">${crest(S.realNames?S.club.name:S.club.name)}<span class="text-[12px] font-bold uppercase font-disp">${S.club.short}</span></div>
+        <div class="text-center"><div class="font-disp font-bold text-[26px] leading-none fmt">${m.score.you} – ${m.score.them}</div>
+          <div class="text-[9.5px] text-slate-400 font-disp uppercase tracking-wider">${m.minute}' · ${KIND_LABEL[m.kind]||''} ${m.home?'H':'A'}</div></div>
+        <div class="flex items-center gap-1.5 flex-row-reverse"><span class="text-[12px] font-bold uppercase font-disp">${(m.oppName||'').split(' ')[0].toUpperCase()}</span>${crest(m.oppName)}</div>
+      </div>
+      <div class="mt-2 flex items-center justify-between text-[10.5px] font-disp uppercase tracking-wider">
+        <span class="text-slate-400">${ROLE_LABEL[m.role]||''}</span>
+        <span>Rating <b class="text-[13px] text-slate-50 fmt" style="color:${m.rating>=7.5?'#a9efc4':m.rating>=6.5?'#f2d98a':'#ef8686'}">${m.rating.toFixed(1)}</b></span>
+      </div>
+      <div class="flex-1 overflow-y-auto mt-2 mb-2" style="scrollbar-width:none" id="tickBox">
+        <div class="text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider font-disp">Commentary feed</div>
+        ${lines || '<div class="text-[12px] text-slate-400">The whistle. Boots on turf.</div>'}
+        <div class="mt-2 grid grid-cols-4 gap-1 text-center">
+          ${[['G',m.p.goals],['A',m.p.assists],['Pass',m.p.passOk+'/'+(m.p.pass||0)],['Duels',m.p.duelWin+'/'+m.p.duels]].map(([l,v])=>`<div class="rounded-lg bg-white/5 py-1.5"><div class="text-[9px] text-slate-500 uppercase font-disp">${l}</div><div class="text-[12px] font-bold fmt">${v}</div></div>`).join('')}
+        </div>
+      </div>
+      <div>${foot}</div></div></div>`;
+  }
+
+  if (k === 'report') {
+    const m = S.match, p = m.p, ps = m.payslip;
+    const ratingCol = m.rating >= 8.5 ? '#f4d67f' : m.rating >= 7.5 ? '#a9efc4' : m.rating >= 6.5 ? '#f2d98a' : '#ef8686';
+    const objRows = (S.objectives || []).map(o => `<div class="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0">
+      <span style="width:9px;height:9px;border-radius:50%;background:${o.done?'#a9efc4':'#ef8686'}"></span>
+      <span class="flex-1 text-[12px] ${o.done?'':'text-slate-400'}">${o.l}</span>
+      <span class="text-[11px] font-bold ${o.done?'text-emerald-300':'text-rose-300'}">${o.done?'+'+(o.fw||3):'−3'}</span></div>`).join('');
+    html = modalShell('Match Report',
+      `${S.realNames?S.club.name:(myClub()||{}).fake} ${m.score.you} – ${m.score.them} ${S.realNames?m.oppName:m.oppFake} · ${KIND_LABEL[m.kind]}`,
+      `<div class="text-center mb-3">
+        <div class="clabel">Your Rating</div>
+        <div class="font-disp font-bold leading-none" style="font-size:60px;color:${ratingCol}">${m.rating.toFixed(1)}</div>
+        <div class="text-[11px] text-slate-400 mt-1">${m.mins} minutes · ${m.role==='reserve'?'development squad':ROLE_LABEL[m.role]}</div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center mb-3">
+        ${[['Goals',p.goals],['Assists',p.assists],['Rating',m.rating.toFixed(1)],['Pass',m.passAcc+'%'],['Duels',p.duelWin+'/'+p.duels],['Cards',(p.yc?'Y ':'')+(p.rc?'RED':'—')||'—']]
+          .map(([l,v])=>`<div class="rounded-xl bg-white/5 border border-white/10 py-2"><div class="clabel">${l}</div><div class="text-[15px] font-bold font-disp fmt mt-0.5">${v}</div></div>`).join('')}
+      </div>
+      ${card('Objectives — ' + m.obj.done + '/' + (S.objectives||[]).length + ' met', objRows)}
+      ${card('Payslip', statRow('Gross wage', money(ps.gross)) + statRow('Tax ('+Math.round(TAX*100)+'%)', '-'+money(ps.tax)) +
+        statRow('Sponsorship', money(ps.sponsor)) + statRow('Upkeep + agent', '-'+money(-ps.upkeep-ps.agent)) +
+        `<div class="mt-1 pt-2 border-t border-white/10">${statRow('<b>Into the bank</b>', '<b>'+money(ps.take)+'</b>')}</div>`)}
+      <div class="grid grid-cols-2 gap-2">
+        <div class="card flat p-2.5 text-center"><div class="clabel">Manager Trust</div>
+          <div class="font-disp font-bold text-[22px] fmt" style="color:${m.favDelta>=0?'#a9efc4':'#ef8686'}">${m.favDelta>=0?'+':''}${m.favDelta}</div>
+          <div class="text-[10px] text-slate-400">now ${S.favor}/100 · ${ROLE_LABEL[role()]}</div></div>
+        <div class="card flat p-2.5 text-center"><div class="clabel">Popularity</div>
+          <div class="font-disp font-bold text-[22px] fmt" style="color:${m.popDelta>=0?'#a9efc4':'#ef8686'}">${m.popDelta>=0?'+':''}${m.popDelta}</div>
+          <div class="text-[10px] text-slate-400">now ${Math.round(S.popularity)} · sponsors ${money(sponsorWeek())}/wk</div></div>
+      </div>
+      ${m.injuryRoll?`<div class="mt-2 p-2.5 rounded-xl" style="background:rgba(239,134,134,.14);border:1px solid rgba(239,134,134,.4)">
+        <b>${m.injuryRoll.n}</b> — out ${m.injuryRoll.w} week${m.injuryRoll.w>1?'s':''}. The physio is not optimistic about the derby.</div>`:''}
+      ${m.trophyLine?`<div class="mt-2 text-[11.5px] text-amber-200">${m.trophyLine}</div>`:''}`,
+      `<button class="btn solid" onclick="afterReport()">Continue</button>`);
+  }
+
+  if (k === 'event') {
+    const ev = UI.event;
+    html = modalShell(ev.tag, 'A decision, and a consequence',
+      `<div class="text-[13.5px] leading-relaxed mb-3">${ev.t}</div>
+       <div class="grid gap-2">${ev.o.map((o, i) => `<button class="opt" onclick="chooseEvent(${i})">
+         <div class="text-[13px] font-semibold mb-1">${o.l}</div>
+         <div class="flex flex-wrap gap-1.5">${effectChips(o.fx)}${o.risk?`<span class="chip reserve">${Math.round(o.risk*100)}% injury risk</span>`:''}</div></button>`).join('')}</div>`);
+  }
+
+  if (k === 'messages') {
+    S.msgs.forEach(m => m.read = true); save();
+    html = modalShell('Inbox', S.msgs.length + ' items',
+      S.msgs.length ? S.msgs.map(m => `<div class="py-2 border-b border-white/5 last:border-0">
+        <div class="flex items-center justify-between gap-2"><span class="chip" style="background:rgba(255,255,255,.1);color:#cfe0f5">${m.kind}</span>
+          <span class="text-[9.5px] text-slate-500 font-disp">S${m.season} W${m.week}</span></div>
+        <div class="text-[12.5px] font-bold mt-1 uppercase font-disp tracking-wide">${m.title}</div>
+        <div class="text-[11.5px] text-slate-300 leading-snug mt-0.5">${m.body}</div>
+        ${m.act==='offers'?`<button class="btn tiny mt-1.5" onclick="closeModal();go('career')">View offers</button>`:''}</div>`).join('')
+        : '<div class="text-[12px] text-slate-400 text-center py-3">Nothing. For now, that is good news.</div>',
+      btn('Close','closeModal()'));
+  }
+
+  if (k === 'social') {
+    const posts = S.flags.socialDone
+      ? '<div class="text-[12px] text-slate-400 text-center py-2">You have posted enough this week. The gaffer has a rule about this.</div>'
+      : `<div class="grid gap-2">${SOCIAL_POSTS.map((p, i) => `<button class="opt" onclick="post(${i})">
+          <div class="text-[12.5px] font-semibold">${p.t}</div><div class="mt-1 flex flex-wrap gap-1.5">${effectChips(p.fx)}</div></button>`).join('')}</div>`;
+    html = modalShell('Your Channels', `${Math.round(S.popularity)} popularity · ${money(sponsorWeek())} per week from sponsors`,
+      `<div class="text-[11.5px] text-slate-400 mb-2">Popularity drives sponsor money, but the board and the manager watch what you post.</div>` + posts);
+  }
+
+  if (k === 'standings') {
+    const st = standings();
+    html = modalShell('Table', ordinal(myPosition()) + ' in the ' + LEAGUES[S.club.lg].name,
+      `<div class="divide-soft">${st.map((r, i) => `<div class="flex items-center gap-2 py-1.5 ${r.c.name===S.club.name?'font-bold':''}">
+        <span class="w-5 text-[11px] text-slate-400 text-right">${i+1}</span>${crest(S.realNames?r.c.name:r.c.fake)}
+        <span class="flex-1 text-[12px] truncate">${S.realNames?r.c.name:r.c.fake}</span>
+        <span class="text-[11px] text-slate-400">${(r.t.form||[]).map(f=>`<i style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:2px;background:${f==='W'?'#a9efc4':f==='D'?'#f2d98a':'#ef8686'}"></i>`).join('')}</span>
+        <span class="w-7 text-right text-[12px] font-bold">${r.t.pts}</span></div>`).join('')}</div>`);
+  }
+
+  if (k === 'training') {
+    html = modalShell('Choose a Drill', `Energy ${S.energy}/${S.energyCap} · ${S.drilledThisWeek}/2 used`,
+      `<div class="grid gap-2">${DRILLS.map(d => { const can = S.energy>=d.cost && !S.injury && S.drilledThisWeek<2;
+        return `<button class="opt ${can?'':'!opacity-40 !pointer-events-none'}" onclick="UI.modal=null;doDrill('${d.id}')">
+          <div class="flex items-center justify-between gap-2"><div><div class="text-[13px] font-bold font-disp uppercase">${d.n}</div>
+            <div class="text-[10.5px] text-slate-400">${d.d}</div></div>
+            <div class="text-right"><div class="chip" style="background:rgba(255,255,255,.12);color:#e8f1ff">-${d.cost}</div>
+            <div class="text-[9.5px] text-slate-500 mt-1">${ATTR_LABEL[d.a]}</div></div></div></button>`}).join('')}</div>
+      <div class="mt-2.5 text-[11px] text-slate-400">Grade A pays double XP and 2 SP. Grades are driven by the attribute you are training, plus rest and kit.</div>`);
+  }
+
+  if (k === 'log') {
+    html = modalShell('Career Feed', 'Every number that moved, and why',
+      S.log.length ? S.log.slice(0, 60).map(l => `<div class="logline">
+        <span class="text-[9.5px] text-slate-500 font-disp">S${l.s} W${l.w}</span> ${l.tag?`<span class="chip !text-[8px]" style="background:rgba(255,255,255,.1);color:#cfe0f5">${l.tag}</span>`:''}
+        <b>${l.label}</b> <span class="fmt" style="color:${typeof l.val==='number'&&l.val>=0?'#a9efc4':l.kind==='money'?'#e8f1ff':'#ef8686'}">${typeof l.val==='number'?(l.kind==='money'?money(l.val):(l.val>0?'+':'')+l.val):l.val}</span></div>`).join('')
+        : '<div class="text-[12px] text-slate-400 text-center py-3">Nothing yet.</div>');
+  }
+
+  if (k === 'renew') {
+    const r = UI.renewal;
+    html = modalShell('Contract Renewal', 'The chief exec is in the room with a folder',
+      `<div class="grid grid-cols-3 gap-2 text-center mb-2">
+        ${[['Wage', money(r.wage)+'/w'], ['Years', r.years], ['Bonus', money(r.bonus)]].map(([l,v])=>`<div class="rounded-xl bg-white/5 border border-white/10 py-2"><div class="clabel">${l}</div><div class="text-[15px] font-bold font-disp mt-0.5">${v}</div></div>`).join('')}
+      </div>
+      <div class="text-[11.5px] text-slate-300">Currently ${money(S.contract.wage)} per week with ${S.contract.years} year(s) left. ${S.contract.years<=1?'They know you can walk.':'They can afford to be slow.'}</div>
+      <button class="opt mt-2" onclick="askClause()"><span class="text-[12.5px]">Ask for a guaranteed role clause instead of more money</span></button>`,
+      `<div class="grid grid-cols-2 gap-2">${btn('Sign it','signRenewal(true)','solid')}${btn('Push back','signRenewal(false)','danger')}</div>`);
+  }
+  if (k === 'loan') {
+    const o = UI.loanOffer;
+    html = modalShell('Loan Move', 'Lower division, guaranteed minutes, half the wage',
+      `<div class="flex items-center gap-2 mb-2">${crest(o.fake||o.club)}<div><div class="text-[13px] font-bold uppercase font-disp">${S.realNames?o.club:o.fake}</div>
+      <div class="text-[10.5px] text-slate-400">${LEAGUES[o.lg].name} · starter on arrival</div></div></div>
+      ${statRow('Loan wage', money(o.wage)+'/week')} ${statRow('Guaranteed', 'First eleven')} ${statRow('Watched by', S.realNames?S.club.name:(myClub()||{}).fake)}
+      <div class="mt-2 text-[11.5px] text-slate-300">This is the escape hatch for a season on the bench. Your trust resets to starter here, but the club will remember what you gave up.</div>`,
+      `<div class="grid grid-cols-2 gap-2">${btn('Accept loan','acceptLoan()','solid')}${btn('Stay and fight','UI.loanOffer=null;closeModal()','danger')}</div>`);
+  }
+  if (k === 'invest') {
+    const t = INVESTMENTS.find(x => x.id === UI.invPick);
+    UI.invAmt = UI.invAmt || Math.min(S.money, t.min);
+    html = modalShell(t.n, `min ${money(t.min)} · swings ±${Math.round(t.risk*100)}% every 4 weeks`,
+      `<div class="text-[11.5px] text-slate-300 mb-2">${t.d}</div>
+       <div class="pill neu mb-2">${money(UI.invAmt)}</div>
+       <div class="grid grid-cols-4 gap-1.5">${[10,25,50,100].map(pc=>`<button class="btn tiny" onclick="UI.invAmt=Math.floor(S.money*${pc/100});renderModal()">${pc}%</button>`).join('')}</div>
+       <div class="mt-2 text-[10.5px] text-slate-500">Cash available ${money(S.money)}. Positions cannot be sold at a good moment — that is the joke.</div>`,
+      `<div class="grid grid-cols-2 gap-2">${btn('Allocate','invest(\''+t.id+'\',UI.invAmt);UI.modal=null;renderAll()','solid')}${btn('Cancel','closeModal()')}</div>`);
+  }
+  if (k === 'review') {
+    const s2 = UI.seasonReview || lastReview();
+    if (!s2) { UI.modal = null; return renderModal(); }
+    const hl = s2.champion ? 'CHAMPIONS' : s2.releg ? 'RELEGATED' : s2.promo ? 'PROMOTION WON' : ordinal(s2.pos) + ' AND NOTHING';
+    html = modalShell('Season ' + s2.seasonNo + ' Review', hl,
+      `<div class="text-center mb-3"><div class="font-disp font-bold text-[32px] leading-none fmt">${s2.goals} <span class="text-[14px] text-slate-400">goals</span> · ${s2.assists} <span class="text-[14px] text-slate-400">assists</span></div>
+       <div class="text-[11px] text-slate-400 mt-1.5">${s2.apps} appearances · ${s2.rating.toFixed(2)} average rating · ${S.age + 1} years old next term</div></div>
+      ${card('Where you finished', `<div class="flex items-center justify-between text-[12.5px]"><span class="flex items-center gap-1.5">${crest(S.realNames?s2.club:s2.clubFake)} ${S.realNames?s2.club:s2.clubFake}</span><b class="font-disp">${ordinal(s2.pos)} · ${s2.pts} pts</b></div>
+        <div class="mt-1.5 text-[11px] text-slate-400">Cup run: ${s2.cup}${s2.boot?' · Golden Boot':''}</div>`)}
+      ${s2.awards && s2.awards.length ? card('Awards', `<div class="flex flex-wrap gap-1.5">${s2.awards.map(a => `<span class="chip gold">${HONOURS[a]}</span>`).join('')}</div>`) : card('Awards', '<div class="text-[11.5px] text-slate-400 text-center py-1">None. Silverware is the only thing they print.</div>')}
+      ${card('Heading in', statRow('Age', S.age + 1, 'attributes drift with it') + statRow('Contract', S.contract.years + 'y left', S.contract.years === 0 ? 'EXPIRED — free agent' : '') +
+        statRow('Manager trust', S.favor + '/100', 'pre-season resets claims') + statRow('Market value', money(marketValue())))}`,
+      `<button class="btn solid" onclick="UI.modal=null;nextSeason()">Pre-season →</button>`);
+  }
+  if (k === 'freeagent') {
+    html = modalShell('Free Agent', 'No club, no wage, no leverage',
+      `<div class="text-[12.5px] text-slate-300 mb-2">Your contract ran out. Pick a destination or the phone stops ringing.</div>` +
+      (S.offers.length ? S.offers.map(o => `<button class="opt mb-2" onclick="acceptOffer('${o.id}')"><div class="flex justify-between"><b>${S.realNames?o.club:o.fake}</b><span>${money(o.wage)}/w</span></div><div class="text-[10.5px] text-slate-400">${o.lgName} · ${o.years}y · ${money(o.bonus)} bonus</div></button>`).join('') : '') +
+      `<button class="opt" onclick="stayCheap()"><b>Stay at ${S.realNames?S.club.name:(myClub()||{}).fake} on a one-year minimum-wage deal</b><div class="text-[10.5px] text-slate-400">Pride, paid in minutes.</div></button>`);
+  }
+  if (k === 'retire') {
+    const L = legacyGrade();
+    html = modalShell('Retirement', 'The legs made the decision before you did',
+      `<div class="text-center mb-3"><div class="clabel">Career Legacy</div><div class="font-disp font-bold text-[30px]" style="color:#f4d67f">${L.grade}</div>
+       <div class="text-[11px] text-slate-400">score ${L.sc}</div></div>
+      ${card('The Numbers', statRow('Seasons', S.seasonNo-1)+statRow('Appearances', S.stats.apps)+statRow('Goals / Assists', S.stats.goals+' / '+S.stats.assists)+
+        statRow('Trophies', S.trophies)+statRow('Caps', S.intl.caps+' ('+S.intl.goals+')')+statRow('Peak value', money(S.careerPeakValue||marketValue()))+
+        statRow('Bank', money(S.money), 'career earnings '+money(S.earned)))}
+      ${Object.keys(HONOURS).filter(k2=>S.badges&&S.badges[k2]).length?card('Honours', `<div class="flex flex-wrap gap-1.5">${Object.keys(HONOURS).filter(k2=>S.badges[k2]).map(k2=>`<span class="chip gold">${HONOURS[k2]}</span>`).join('')}</div>`):''}`,
+      `<div class="grid grid-cols-2 gap-2">${btn('Retire now','doRetire()','solid')}${S.age<CONFIG.retireAge?btn('One more season','closeModal()'):''}</div>`);
+  }
+  if (k === 'settings') {
+    html = modalShell('Settings', 'Football Career 27',
+      `${statRow('Real names', `<button class="btn tiny !px-2.5" onclick="S.realNames=!S.realNames;save();renderAll();openModal('settings')">${S.realNames?'ON':'OFF'}</button>`, 'fictional clubs and players by default')}
+       ${statRow('Autosave', 'on', 'localStorage, every action')}
+       <div class="grid grid-cols-2 gap-2 mt-2">${btn('Export save',"exportSave()")}${btn('Import save',"importSave()")}</div>
+       <div class="grid grid-cols-2 gap-2 mt-2">${btn('Career feed',"closeModal();openModal('log')")}${btn('Restart career','hardReset()','danger')}</div>
+       <div class="mt-2 text-[10.5px] text-slate-500 leading-relaxed">Balance model: match −${CONFIG.matchEnergy.starter} energy, drill −${CONFIG.drillEnergy}, recovery +${recovPerWeek()}/week, low energy below ${CONFIG.lowEnergyPct}% costs 12% on every check. Trust gates the XI: 75 to start, 65 to hold it, 40 to make the bench, 35 to fall out.</div>`);
+  }
+  host.innerHTML = html;
+}
+const SOCIAL_POSTS = [
+  { t:'Training-ground clip: 40 minutes of finishing, no caption', fx:{ popularity:+4, favor:+4, xp:+20 } },
+  { t:'Post the car keys outside the villa', fx:{ popularity:+7, favor:-5, morale:+3 } },
+  { t:'Visit the hospital ward, tag nobody', fx:{ popularity:+5, favor:+2, morale:+6 } },
+  { t:'Reply to a fan who says you are not good enough', fx:{ popularity:+3, favor:-3 } },
+  { t:'Nothing. Disappear until Saturday.', fx:{ favor:+2, popularity:-3, energy:+6 } }
+];
+function post(i) {
+  const p = SOCIAL_POSTS[i];
+  S.flags.socialDone = 1; applyEffects(p.fx);
+  queueMsg('SOCIAL', 'Posted', p.t); save(); closeModal(); toast('Posted — the room reacts', 'up');
+}
+function askClause() {
+  const ok = chance(.3 + S.favor / 220 + (S.s.goals / 40));
+  if (ok) { S.contract.clause = 'starter'; UI.renewal.wage = Math.round(UI.renewal.wage * .93);
+    queueMsg('CONTRACT','CLAUSE WON','The club will put a guaranteed-role clause in the deal, and pay 7% less for it.'); toast('Clause inserted', 'up'); }
+  else { applyEffects({ favor:-4 }); queueMsg('CONTRACT','CLAUSE REFUSED','They laughed at the clause. "You do not dictate the team sheet."'); toast('Refused — trust −4', 'dn'); }
+  UI.modal=null; renderAll();
+}
+function stayCheap() {
+  S.contract = { wage: Math.round(S.contract.wage*.8), years:1, bonus:0, clause:null };
+  applyEffects({ favor:5, morale:-4 }); queueMsg('CONTRACT','ON THE MINIMUM','You stayed. The wage is a rounding error and the minutes are yours.');
+  UI.modal=null; renderAll();
+}
+function lastReview() { return S.history[0] || null; }
+function afterReport() {
+  S.flags.socialDone = 0; S.flags.requested = S.flags.requested;
+  intlCheck();
+  if (S.ovr > (S.careerPeakOvr||0)) S.careerPeakOvr = S.ovr;
+  const v = marketValue(); if (v > (S.careerPeakValue||0)) S.careerPeakValue = v;
+  S.careerSeasons = S.careerSeasons || [];
+  UI.modal = null; advanceWeek(false);
+}
+function doRetire() {
+  S.retired = true; save();
+  UI.modal = null;
+  $('#game').classList.add('hidden'); $('#title').classList.remove('hidden');
+  $('#tLoad').textContent = 'Load retired career';
+  toast('Career closed. Legacy saved.', 'up');
+}
+function effectChips(fx) {
+  const map = { energy:['Energy','#bcd9ff'], favor:['Trust','#a9efc4'], popularity:['Popularity','#f4d67f'],
+                money:['Cash','#a9efc4'], xp:['XP','#e8dcff'], morale:['Morale','#c9b6f5'], sp:['SP','#a9efc4'] };
+  const out = Object.keys(fx || {}).filter(k => map[k] && fx[k]).map(k => {
+    const v = fx[k], good = v > 0, col = v > 0 ? 'rgba(169,239,196,.22)' : 'rgba(239,134,134,.22)';
+    return `<span class="chip" style="background:${col};color:#eaf1fb">${map[k][0]} ${good?'+':''}${k==='money'?money(v):v}</span>`;
+  });
+  if (fx && fx.attrs) for (const k in fx.attrs) out.push(`<span class="chip" style="background:rgba(169,239,196,.22);color:#eaf1fb">${ATTR_LABEL[k]} +${fx.attrs[k]}</span>`);
+  if (fx && fx.yc) out.push(`<span class="chip reserve">Yellow card</span>`);
+  if (fx && fx.injuryWeeks) out.push(`<span class="chip reserve">Injury ${fx.injuryWeeks}w</span>`);
+  return out.join('') || '<span class="chip" style="background:rgba(255,255,255,.08);color:#9fb3cd">No cost</span>';
+}
+
+/* ================================================================ SAVE TOOLS */
+function exportSave() {
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+  navigator.clipboard?.writeText(code).catch(()=>{});
+  const t = document.createElement('textarea'); t.value = code; t.style.position = 'fixed'; t.style.opacity = '0';
+  document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (e) {} t.remove();
+  toast('Save code copied — ' + Math.round(code.length / 1024) + 'KB', 'up');
+}
+function importSave() {
+  const code = prompt('Paste a save code:');
+  if (!code) return;
+  try { const o = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+    if (!o || !o.v) throw 0; S = o; UI.tab = 'home'; showGame(); renderAll(); save(); toast('Career loaded', 'up');
+  } catch (e) { toast('That code is broken', 'dn'); }
+}
+function hardReset() {
+  if (!confirm('Delete this career?')) return;
+  localStorage.removeItem(SAVE_KEY); location.reload();
+}
+/* ================================================================ BOOT */
+function showGame() { $('#title').classList.add('hidden'); $('#create').classList.add('hidden');
+  const g = $('#game'); g.classList.remove('hidden'); g.classList.add('flex'); }
+function buildDock() {
+  $('#dock').innerHTML = NAV.map(n => `<button data-tab="${n.id}" onclick="go('${n.id}')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${n.d}"/></svg>
+    <span>${n.l}</span></button>`).join('');
+}
+function initCreate() {
+  $('#cNat').innerHTML = NATIONALITIES.map(n => `<option>${n}</option>`).join('');
+  $('#cPos').innerHTML = Object.keys(POSITIONS).map((p, i) =>
+    `<button class="opt !p-2 text-center ${i===0?'!border-emerald-200/60':''}" data-p="${p}" onclick="selPos('${p}')">
+      <div class="font-disp font-bold text-[15px]">${p}</div><div class="text-[9.5px] text-slate-400 uppercase tracking-wide">${POSITIONS[p].label}</div></button>`).join('');
+  $('#cClub').innerHTML = STARTERS.map((s, i) =>
+    `<button class="opt ${i===0?'!border-emerald-200/60':''}" data-c="${s.id}" onclick="selClub('${s.id}')">
+      <div class="flex items-center justify-between gap-2"><div><div class="text-[12.5px] font-bold uppercase font-disp tracking-wide">${s.club}</div>
+      <div class="text-[10px] text-slate-400">${LEAGUES[s.lg].name} · ${s.tier}</div></div>
+      <div class="text-right"><div class="text-[11px] font-bold fmt">${money(s.wage)}/w</div><div class="text-[9.5px] text-slate-500">${s.perk.split('.')[0]}</div></div></div></button>`).join('');
+  UI.create = { pos:'ST', clubId:'PEN' };
+  $('#cPosHint').textContent = POSITIONS.ST.hint;
+}
+function selPos(p) {
+  UI.create.pos = p; $$('#cPos button').forEach(b => b.classList.toggle('!border-emerald-200/60', b.dataset.p === p));
+  $('#cPosHint').textContent = POSITIONS[p].hint;
+}
+function selClub(id) {
+  UI.create.clubId = id; $$('#cClub button').forEach(b => b.classList.toggle('!border-emerald-200/60', b.dataset.c === id));
+}
+function startCareer(demo) {
+  const name = demo ? 'Ashim Kunwar' : (($('#cName')?.value || '').trim() || 'Ashim Kunwar');
+  const opts = demo ? { name, nat:'England', pos:'ST', clubId:'MOL' }
+                    : { name: name.slice(0, 22), nat: $('#cNat').value, pos: UI.create.pos, clubId: UI.create.clubId };
+  S = blankState(opts);
+  S.flags.mgrIdx = ri(0, MANAGERS.length - 1);
+  S.manager = MANAGERS[S.flags.mgrIdx];
+  S.parentClub = S.club.name;
+  recalcOvr(); buildSeason(true); setFavor(S.favor, 0); S.energy = S.energyCap;
+  S.upkeep = upkeepOf();
+  queueMsg('START', 'PROFESSIONAL CONTRACT', `${opts.name}, 17, ${opts.pos}. Signed for ${S.realNames ? S.club.name : (myClub()||{}).fake} in the ${LEAGUES[S.club.lg].name}. ${money(S.contract.wage)} a week for three seasons. The gaffer said: "Prove it in November."`);
+  unlock('signed'); UI.tab = 'home'; showGame(); renderAll(); save();
+  toast('Welcome to the first team', 'up');
+}
+function toast(msg, kind) {
+  const box = $('#toast'); const d = document.createElement('div');
+  d.className = 'toast ' + (kind || ''); d.textContent = msg;
+  box.appendChild(d);
+  setTimeout(() => { d.style.transition = 'opacity .4s, transform .4s'; d.style.opacity = '0'; d.style.transform = 'translateY(-8px)'; }, 1900);
+  setTimeout(() => d.remove(), 2400);
+  if (box.children.length > 3) box.firstChild.remove();
+}
+function boot() {
+  initCreate(); buildDock();
+  const saved = load();
+  $('#tLoad').style.opacity = saved ? '1' : '.4';
+  $('#tNew').onclick = () => { $('#title').classList.add('hidden'); const c = $('#create'); c.classList.remove('hidden'); };
+  $('#cStart').onclick = () => startCareer(false);
+  $('#tDemo').onclick = () => startCareer(true);
+  $('#tLoad').onclick = () => {
+    if (!saved) return toast('No save found on this device', 'dn');
+    S = saved; UI.tab = 'home'; showGame(); renderAll(); toast('Career reloaded', 'up');
+  };
+  $('#tLog').onclick = () => {
+    if (!saved) return toast('No career history yet', 'dn');
+    S = saved; showGame(); UI.modal = 'log'; renderAll();
+  };
+  $('#hSettings').onclick = () => openModal('settings');
+  $('#hEnergyNum').parentElement.parentElement.onclick = () => go('dev');
+  document.addEventListener('keydown', e => {
+    if (!S) return;
+    if (UI.modal === 'match' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); const m = S.match;
+      if (m.script[m.idx] && m.script[m.idx].k !== 'prompt') matchTick(); }
+    if (UI.modal === 'match' && ['1','2','3'].includes(e.key)) { const m = S.match, e2 = m.script[m.idx];
+      if (e2 && e2.k === 'prompt' && e2.src.o[+e.key - 1]) chooseOption(+e.key - 1); }
+    if (UI.modal === 'report' && e.key === 'Enter') afterReport();
+  });
+  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+    document.body.style.paddingTop = '0';
+  }
+  window.addEventListener('beforeunload', save);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+
+/* expose for inline handlers */
+Object.assign(window, { go, openModal, closeModal, proceed, restAndSkip, advanceWeek, matchTick, chooseOption,
+  afterReport, chooseEvent, buyAttr, buyNode, doDrill, hireAgent, requestTransfer, acceptOffer, counterOffer,
+  rejectOffer, renewContract, signRenewal, acceptLoan, buyItem, invest, cashOut, startCareer, selPos, selClub,
+  exportSave, importSave, hardReset, post, askClause, stayCheap, doRetire, UI });
+</script>
+</body>
+</html>
