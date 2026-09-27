@@ -199,6 +199,10 @@ node tools/simulate.js      plays scripted careers + a 36-config sweep (6 positi
                             OVR/trust ranges, then a save round-trip
 node tools/uismoke.js       renders every tab and every modal and calls ~50 handlers, so a
                             click that would throw in a browser throws here instead
+node tools/matchflow.js     plays five matches beat by beat and reads the ticker back: the sheet must
+                            say 0-0 at kick-off, move one goal at a time, spread its goals across the
+                            90 rather than dumping them at one end, and the full-time line must agree
+                            with the result that actually happened
 node tools/pageorder.js     walks index.html's <script> tags in document order and executes them the
                             way an HTML parser would — external files included. It fails if the page
                             does not load db.js before the engine reads window.FC27_DB. Every other

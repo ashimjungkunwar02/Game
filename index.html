@@ -1554,18 +1554,84 @@ function startMatchAgainst(opp, kind, big, stage, home, round) {
   m.diffCfg = diff;
   m.otherYou = poisson(lamYou * (r === 'starter' ? .58 : r === 'sub' ? .72 : .93));
   m.baseThem = poisson(lamThem);
-  m.score.you = m.otherYou; m.score.them = m.baseThem;
+  /* The score is NOT written here. The old code dropped both totals into m.score at kick-off, so the
+     sheet read 1-2 on the first line and the match was over before you touched a ball. The totals are
+     kept, but they arrive as timed goals through the 90 minutes (see scheduleBeats), and the player's
+     own actions are added on top of them at the minute they happen. */
+  scheduleBeats(m);
   buildScript(m);
   UI.modal = 'match'; renderModal();
 }
+/* Team-mate and opposition goals become timed events, so the score on screen is the score *so far*.
+   A block during the match can delete one of them, which is the only reason that prompt ever meant
+   anything. Everything still resolves to the same final tally, so nothing in the table or the
+   balance moves — only the moment it becomes visible. */
+const GOAL_BEAT = {
+  you: [
+    'A goal from nowhere: a deflection, a half-chance, and your team-mate buries it before the keeper moves.',
+    'Corner in, scramble out, and somebody in the right shirt puts it in the bottom corner.',
+    'A counter of four passes and a finish as cold as the weather. The bench loses its mind.',
+    'Your team-mate gets turned, shoots anyway, and it takes the inside of the post and in.'
+  ],
+  them: [
+    'Their striker gets a shoulder in front of the full-back and finishes the chance. Nothing clever about it.',
+    'A mistake at the back, ninety seconds of chaos, and the ball is in the net.',
+    'They work it to the byline, cut it back, and the tap-in is the easiest goal of their season.',
+    'Long ball over the top. The keeper is caught half a yard off his line and they chip him.'
+  ]
+};
+function scheduleBeats(m) {
+  const total = (m.otherYou | 0) + (m.baseThem | 0);
+  const sides = [];
+  for (let i = 0; i < (m.otherYou | 0); i++) sides.push('you');
+  for (let i = 0; i < (m.baseThem | 0); i++) sides.push('them');
+  for (let i = sides.length - 1; i > 0; i--) { const j = ri(0, i); const x = sides[i]; sides[i] = sides[j]; sides[j] = x; }
+  /* the goals are laid out as evenly spaced as a fixture list, then jittered — not rolled
+     independently, because three goals inside five minutes reads as a scoreboard being filled in,
+     which is the exact complaint this change answers */
+  const step = 84 / Math.max(1, total), mins = [];
+  for (let i = 0; i < total; i++) {
+    const j = Math.min(4, Math.floor(step * .35));
+    mins.push(clamp(Math.round(4 + step * (i + .5) + ri(-j, j)), 3, 89));
+  }
+  for (let i = 1; i < mins.length; i++) if (mins[i] <= mins[i - 1]) mins[i] = mins[i - 1] + 1;
+  m.beats = mins.map((min, i) => ({ min, side: sides[i], t: pick(GOAL_BEAT[sides[i]]) })).sort((a, b) => a.min - b.min);
+}
+function applyScoreBeats(m, upTo, one) {
+  if (!m.beats || !m.beats.length) return 0;
+  let n = 0;
+  /* one goal per beat: two strikes in the same minute is real football, but on a ticker it reads as
+     the result being handed over in a clump, which is the thing this whole change exists to stop */
+  while (m.beats.length && m.beats[0].min <= upTo && !(one && n)) {
+    const b = m.beats.shift(); n++;
+    if (b.side === 'you') m.score.you += 1; else m.score.them += 1;
+    m.log.push({ t: b.t + ' ' + m.score.you + '-' + m.score.them + '.', min: b.min, goal: b.side });
+    m.minute = Math.max(m.minute || 0, b.min);
+  }
+  return n;
+}
+function flushBeats(m) { return applyScoreBeats(m, 99); }
+/* a defensive prompt only denies something if a goal was actually coming — otherwise it is a
+   tackle, not a save, and the scoreline must not lie about it */
+function preventGoal(m) {
+  const i = (m.beats || []).findIndex(b => b.side === 'them');
+  if (i >= 0) { m.beats.splice(i, 1); return 'cleared'; }
+  if (m.score.them > 0) { m.score.them -= 1; return 'dealt with'; }
+  return null;
+}
+function ftLine(m) {
+  return 'Full time. ' + (m.score.you > m.score.them
+    ? 'Your side hang on a corner long enough for the noise to change.'
+    : m.score.you < m.score.them ? 'You lose the ball, and you lose the game.' : 'One point, and nothing settled.');
+}
 function buildScript(m) {
   const s = [];
-  s.push({ k:'line', t:`Kick-off. ${m.home ? 'You line up at ' + cname({name:S.club.name, fake:S.club.name}) + ' against ' + cname({name:m.oppName, fake:m.oppFake}) + '.' : 'Road game. ' + cname({name:m.oppName, fake:m.oppFake}) + ' in front of their own people.'}` });
+  s.push({ k:'line', t:`Kick-off. ${m.home ? 'You line up at ' + cname({name:S.club.name, fake:S.club.name}) + ' against ' + cname({name:m.oppName, fake:m.oppFake}) + '.' : 'Road game. ' + cname({name:m.oppName, fake:m.oppFake}) + ' in front of their own people.'}`, minute: 1 });
   s.push({ k:'line', t: m.role === 'reserve'
     ? (m.blocked ? (m.role === 'injured' ? 'You are not fit. The physio has you on a bike in the gym while it goes on without you.' : 'Suspended. You watch from the stand with your phone in your pocket.')
                  : 'You are not in the matchday squad. Instead: forty-five minutes for the development side against their academy.')
     : m.role === 'sub' ? 'Your name is on the sheet at number ' + ri(16, 24) + '. The gaffer says: "Go and change it."'
-    : 'Named in the eleven. Your first touch of the afternoon is watched by about nine thousand people and one scout.' });
+    : 'Named in the eleven. Your first touch of the afternoon is watched by about nine thousand people and one scout.', minute: 2 });
 
   const pool = PROMPTS.filter(p => p.roles.includes('*') || p.roles.includes(S.pos))
     .filter(p => !p.energy || S.energy <= p.energy);
@@ -1598,11 +1664,12 @@ function buildScript(m) {
     mi = Math.min(89, mi + ri(5, 12)); tail++; pushed++;
     s.push({ k:'line', t: ambient(m, mi), minute: mi });
   }
-  s.push({ k:'line', t: `Full time. ${m.score.you > m.score.them ? 'Your side hang on a corner long enough for the noise to change.' : m.score.you < m.score.them ? 'You lose the ball, and you lose the game.' : 'One point, and nothing settled.'}`, minute: 90 });
+  /* the last line cannot be composed at kick-off: it is a verdict on a result that has not happened */
+  s.push({ k:'line', minute: 90, ft: 1, t: '' });
   m.script = s;
 }
 const U21_PROMPT = { id:'u21', w:1, roles:['*'], min:0,
-  t:'Development squad, eighty-third minute, one nil down. A loose ball falls to you on the halfway line with nobody covering.',
+  t:'Development squad, second half. A loose ball falls to you on the halfway line with nobody covering.',
   o:[ { l:'Drive at them and finish', s:'shooting', d:8, k:'shot' },
       { l:'Take it past two men', s:'dribbling', d:6, k:'dribble' },
       { l:'Run it, then square it', s:'passing', d:5, k:'pass' } ] };
@@ -1610,12 +1677,14 @@ const TIRED_PROMPT = { id:'tiredpull', w:1, roles:['*'], min:0,
   t:'Something in your calf has stopped being a feeling and started being a fact. The bench is looking at you.',
   o:[ { l:'Play on', s:'physical', d:12, k:'run_on' },
       { l:'Signal for the sub', s:'passing', d:-40, k:'come_off' } ] };
+/* the ticker writes the minute itself, so ambient lines must not repeat it — and they read the
+   live score, which until this change was the match already over */
 function ambient(m, min) {
   const r = Math.random();
-  if (r < .18 && m.score.you > 0) return `You ${min}' — ${pick(AMBIENT.goal)}`;
-  if (r < .3) return `${min}' — ${pick(m.role === 'reserve' ? AMBIENT.you_off : AMBIENT.you_on)}`;
-  if (r < .45) return `${min}' — ${pick(AMBIENT.crowd)}`;
-  return `${min}' — ${pick(m.score.them > 0 && r < .7 ? AMBIENT.concede : AMBIENT.you_off)}`;
+  if (r < .18 && m.score.you > 0) return pick(AMBIENT.goal);
+  if (r < .3) return pick(m.role === 'reserve' ? AMBIENT.you_off : AMBIENT.you_on);
+  if (r < .45) return pick(AMBIENT.crowd);
+  return pick(m.score.them > 0 && r < .7 ? AMBIENT.concede : AMBIENT.you_off);
 }
 
 function checkSuccess(stat, diff) {
@@ -1667,7 +1736,13 @@ function resolvePrompt(opt, src) {
     else if (band === 'error') { rt = -.25; line = 'Knocked away from you on the touchline.'; }
     else { rt = -.45; line = 'Nutmegged by the fullback, in front of your own bench. That will be on social media.'; }
   } else if (opt.k === 'defend') {
-    if (band === 'clinical') { m.score.them = Math.max(0, m.score.them - 1); rt = .5; line = 'Block, hold your shape, no chance. The keeper slaps the turf and points at you.'; }
+    if (band === 'clinical') {
+      const denied = preventGoal(m);
+      rt = .5;
+      line = denied === 'cleared' ? 'Block, hold your shape, no chance. The shot that was coming is not coming now.'
+           : denied === 'dealt with' ? 'You get a boot in and the goal is not there. The keeper slaps the turf and points at you.'
+           : 'Clean, early, no foul. You have won the duel; nothing was coming to stop.';
+    }
     else if (band === 'good') { rt = .2; line = 'You get a foot in and force it behind for a corner.'; }
     else if (band === 'error') { rt = -.3; line = 'Missed it, recovered, given away a corner off your boot.'; }
     else { m.score.them += 1; rt = -.7; line = 'You commit, miss, and they score the other way. On you.'; }
@@ -1711,8 +1786,10 @@ function matchTick() {
   if (m.script[m.idx].k === 'prompt') return;              // waiting on the player
   const e = m.script[m.idx];
   m.minute = e.minute || m.minute;
+  applyScoreBeats(m, m.minute, true);                 // goals elsewhere on the pitch, as they happen
+  if (e.ft) { flushBeats(m); e.t = ftLine(m); }       // the tail of the match, all at once
   m.rating = liveRating();
-  m.log.push({ t: e.t, min: e.minute });
+  if (e.t) m.log.push({ t: e.t, min: e.minute });
   m.idx++;
   if (m.idx >= m.script.length) return finishMatch();
   renderModal();
@@ -1722,6 +1799,7 @@ function chooseOption(i) {
   if (!e || e.k !== 'prompt' || !e.src.o[i]) { if (e) { m.log.push({ t: 'You make the simple choice.', min: e.minute }); m.idx++; } return renderModal(); }
   const res = resolvePrompt(e.src.o[i], 'p');
   m.minute = e.minute;
+  applyScoreBeats(m, m.minute, true);                 // the score the player just changed, plus anything since
   m.rating = liveRating();
   m.log.push({ t: res.line, min: e.minute, band: res.band });
   m.idx++;
@@ -1735,6 +1813,7 @@ function finishMatch() {
   const m = S.match, p = m.p;
   if (m && m.__done) return;                 // one resolution per match, whatever calls it
   if (m) m.__done = true;
+  if (m && m.script && m.script.length) { flushBeats(m); const last = m.script[m.script.length - 1]; if (last.ft && !last.t) last.t = ftLine(m); }
   S._resolved = S.seasonNo + ':' + S.week;
   const roleMins = m.role === 'starter' ? (m.cameOff ? ri(52, 78) : ri(82, 90)) : m.role === 'sub' ? ri(14, 27) : m.blocked ? 0 : ri(40, 55);
   m.mins = m.injured ? Math.max(12, roleMins - ri(25, 45)) : roleMins;
@@ -3225,8 +3304,8 @@ function renderModal() {
     const m = S.match;
     if (!m) { UI.modal = null; return renderModal(); }        /* a stale modal must never blank the app */
     const e = m.script[m.idx];
-    const lines = m.log.slice(-7).map(l => `<div class="logline tick ln pl-2.5 ${l.band==='clinical'?'!text-emerald-200':''} ${l.band==='miss'||l.band==='error'?'!text-rose-200':''}">
-      <span class="text-slate-500 text-[10px] font-disp">${l.min||m.minute}'</span> ${esc(l.t)}</div>`).join('');
+    const lines = m.log.slice(-7).map(l => `<div class="logline tick ln pl-2.5 ${l.goal==='them'?'!text-rose-200':l.band==='clinical'||l.goal==='you'?'!text-emerald-200':''} ${l.band==='miss'||l.band==='error'?'!text-rose-200':''}">
+      <span class="text-slate-500 text-[10px] font-disp">${l.min != null ? l.min : m.minute}'</span> ${esc(l.t)}</div>`).join('');
     let foot;
     if (e && e.k === 'prompt') {
       foot = `<div class="mb-1.5 flex items-center justify-between"><span class="clabel">Choose — ${e.minute}'</span>
