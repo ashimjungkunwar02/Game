@@ -200,9 +200,10 @@ node tools/uismoke.js       renders every tab and every modal and calls ~50 hand
                             click that would throw in a browser throws here instead
 node tools/pageorder.js     walks index.html's <script> tags in document order and executes them the
                             way an HTML parser would — external files included. It fails if the page
-                            does not load db.js before the engine reads window.FC27_DB. Every other tool concatenates
-                            the two files by hand, so this is the only one that can catch a page that forgot its own
-                            data (which happened: v1.5 split the world out and never added the tag)
+                            does not load db.js before the engine reads window.FC27_DB. Every other
+                            tool concatenates the two files by hand, so this is the only one that can
+                            catch a page that forgot its own data — which happened: v1.5 split the
+                            world out of index.html and never added the tag back
 ```
 
 Current state: **DB valid (192 clubs, 3,125 players, 99 coaches, 150 nations)**, sweep clean across
