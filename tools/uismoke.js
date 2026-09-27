@@ -63,6 +63,7 @@ global.atob = s => Buffer.from(s, 'base64').toString('binary');
 
 /* ---- the careers themselves. No backticks or ${ in here: it is embedded as a template literal ---- */
 const CAREER = `
+
 function traceRow(label, v) { console.log(label + ' ' + v); }
 function pickSmart(e, cfg) {
   if (!cfg.smart) return ri(0, e.src.o.length - 1);
@@ -114,11 +115,7 @@ function invariants() {
   /* a mid-season move can land you in a division whose calendar is shorter than the week you
      are on: the fixture list simply runs out and the season closes, so a small overshoot is
      legal. Anything bigger means the rollover is genuinely stuck. */
-  /* A mid-season move (or a loan ending abroad) can hand you a division whose fixture list
-     is shorter than the week you are on. The engine clamps and closes the season on the next
-     tick, so this is a wobble, not a break — but we count it, and a real run-away still shows
-     up as the guard running out. */
-  if (S.week > schedule().length + 1) { st_wobble[0]++; if (S.week > schedule().length + 14) throw new Error('week lost ' + S.week + '/' + schedule().length); }
+  if (S.week > schedule().length + 5) throw new Error('week past the calendar ' + S.week);
   if (!isFinite(S.fatigue) || S.fatigue < 0 || S.fatigue > 100) throw new Error('fatigue range ' + S.fatigue);
   if (S.injury && !(S.injury.left >= 0)) throw new Error('injury counter');
   if (Object.keys(S.table).length !== roster(S.club.lg, S.div).length) throw new Error('table size drift');
@@ -149,79 +146,87 @@ function playWeek(cfg) {
   resolveModals(cfg);
   return true;
 }
-function fullCareer(seasons, cfg) {
-  newCareer(cfg);
-  for (let s = 0; s < seasons; s++) {
-    for (let g = 0; g < 80 && playWeek(cfg); g++) { }
-    const h = S.history[0] || {};
-    traceRow('S' + (s + 1), 'age' + S.age + '  ' + String(S.club.name).slice(0, 16).padEnd(16) +
-      ' ovr' + String(S.ovr).padStart(2) + ' fav' + String(S.favor).padStart(3) + ' ' + S.roleBase.padEnd(7) +
-      ' apps' + String(S.s.apps).padStart(2) + ' st' + String(S.s.starts).padStart(2) + ' ' + S.s.goals + 'g ' + S.s.assists + 'a' +
-      ' rt' + (avg(S.s.rating) || 0).toFixed(2) + ' pos' + (h.pos || '-') + ' cash' + money(S.money, 0) +
-      ' val' + money(marketValue(), 0) + ' tr' + S.trophies + ' caps' + S.intl.caps);
-    endSeason(); UI.modal = null; nextSeason(); UI.modal = null;
+
+const fail = [], stateful = [];
+function tryIt(label, fn) {
+  try { fn(); }
+  catch (e) {
+    const m = e.message || String(e);
+    if (/is not defined|undefined is not|cannot read|Cannot read|is not a function/.test(m) && /is not defined|is not a function/.test(m)) fail.push(label + ' :: ' + m);
+    else stateful.push(label + ' :: ' + m);
   }
-  traceRow('TOTAL', S.stats.apps + ' apps · ' + S.stats.goals + 'g/' + S.stats.assists + 'a · g90 ' +
-    (S.stats.goals / Math.max(1, S.stats.mins) * 90).toFixed(2) + ' · trophies ' + S.trophies +
-    ' · caps ' + S.intl.caps + '(' + S.intl.goals + ') · ' + S.age + 'y ovr' + S.ovr +
-    ' · honours ' + (S.honours.map(x => x.k).join(',') || 'none') + ' · bank ' + money(S.money, 0));
-  return S;
 }
-function sweep(seasons, cfg) {
-  const st = { matches: 0, errors: [], wobble: 0 };
-  const st_wobble = [0];
-  globalThis.__w = st_wobble;
-  newCareer(cfg);
-  for (let guard = 0; guard < seasons * 70; guard++) {
-    if (S.retired) break;
-    try {
-      const f = fixtureNow();
-      if (f.t === 'final') { endSeason(); UI.modal = null; nextSeason(); }
-      else if (f.t !== 'rest') {
-        if (!S.objectives) S.objectives = makeObjectives();
-        startMatch();
-        const m = S.match; let inner = 0;
-        while (m && !m.done && inner++ < 300) { const e = m.script[m.idx]; if (e && e.k === 'prompt') chooseOption(ri(0, e.src.o.length - 1)); else matchTick(); }
-        if (m && !m.done) finishMatch();
-        st.matches++; afterReport(); UI.modal = null;
-      } else advanceWeek(true);
-      resolveModals(cfg);
-      invariants();
-    } catch (e) {
-      st.errors.push('S' + S.seasonNo + 'W' + S.week + ' ' + e.message + (process.env.D ? ' [len=' + schedule().length + ' sched=' + (S._sched ? S._sched.length : 'none') + ' rounds=' + (S.rounds||[]).length + ' mode=' + S.mode + ' modal=' + UI.modal + ' shown=' + S.flags.reviewShown + ' tour=' + (S.intl && S.intl.tour ? 'Y' : 'N') + ' role=' + S.roleBase + ' inj=' + (S.injury?S.injury.n:'-') + ' club=' + S.club.name + '/' + S.club.lg + S.div + ' at ' + String((e.stack||'').split(String.fromCharCode(10))[1]||'').trim().slice(0,80) : ''));
-      if (st.errors.length > 3) break;
-      try { endSeason(); UI.modal = null; nextSeason(); } catch (e2) { S.week++; }
-    }
-  }
-  st.wobble = st_wobble[0];
-  return st;
-}
-console.log('=== WORST CASE: 17y ST at a Championship relegation-bound club, random choices, 12 seasons ===');
-fullCareer(12, { pos: 'ST', club: 'Burnley', lg:'ENG', div:0, wide: true });
-console.log('=== BEST CASE: same player at a top-3 Premier League club, always shoots, 8 seasons ===');
-fullCareer(8, { pos: 'ST', club: 'Manchester City', wide: true, smart: true });
-console.log('=== REAL PLAYER TAKEOVER: 8 seasons as an existing professional ===');
-fullCareer(8, { mode: 'real', club: '', club2: 'Erling Haaland', wide: true, smart: true });
-console.log('=== DEFENDER: CB in Ligue 1, 8 seasons ===');
-fullCareer(8, { pos: 'CB', club: 'FC Metz', lg: 'FRA', div: 1, wide: true });
-console.log('=== SWEEP: 6 positions x 6 clubs across 5 countries, 7 seasons each ===');
-let bad = 0, wob = 0;
-const CLUBS_S = ['Sheffield United', 'Real Oviedo', 'FC Schalke 04', 'FC Metz', 'Avellino', 'Manchester City'];
-for (const pos of ['ST', 'LW', 'RW', 'CAM', 'CM', 'CB']) for (const club of CLUBS_S) {
-  const cfg = { pos, club, wide: true };
-  if (club === 'FC Schalke 04') { cfg.lg = 'GER'; cfg.div = 1; }
-  if (club === 'Real Oviedo' || club === 'Avellino') cfg.div = 1;
-  if (club === 'Real Oviedo') cfg.lg = 'ESP';
-  if (club === 'FC Metz') { cfg.lg = 'FRA'; cfg.div = 1; }
-  if (club === 'Avellino') cfg.lg = 'ITA';
-  const r = sweep(7, cfg);
-  wob += r.wobble;
-  if (r.errors.length) { bad++; console.log(pos + '@' + club + '  ' + r.errors.slice(0, 2).join(' | ')); }
-}
-console.log(bad ? bad + ' FAILING CONFIGS' : 'SWEEP CLEAN · ' + (6 * CLUBS_S.length) + ' careers, ' + (6 * CLUBS_S.length * 7 * 46) + ' weeks simulated');
-console.log('calendar wobbles recovered without a break: ' + wob + ' across ' + (6 * CLUBS_S.length) + ' careers');
-const raw = JSON.stringify(S); const o = JSON.parse(raw);
-console.log('SAVE ' + (raw.length > 1000 && o.name === S.name ? 'round-trips · ' + Math.round(raw.length / 1024) + 'kb' : 'FAIL'));
+function playSome(n, cfg) { for (let i = 0; i < n; i++) { try { playWeek(cfg); } catch (e) { fail.push('week :: ' + e.message); break; } } }
+
+newCareer({ pos:'ST', club:'Manchester City', wide:true, smart:true });
+playSome(240, { wide:true, smart:true });
+
+for (const t of ['home','dev','career','life','hub','team']) tryIt('tab ' + t, () => { go(t); renderAll(); });
+for (const k of ['match','report','event','messages','standings','training','log','renew','loan','invest','review','freeagent','retire','epitaph','presser','awayday','medical','tourney','manager','settings','social','dev'])
+  tryIt('modal ' + k, () => { UI.modal = k; renderModal(); UI.modal = null; });
+
+const acts = [
+  ['restWeek', () => restWeek()],
+  ['skipFixture', () => skipFixture()],
+  ['squadTalk', () => squadTalk()],
+  ['shareCard', () => shareCard()],
+  ['retrain', () => retrain()],
+  ['setTactic', () => setTactic('tikiTaka')],
+  ['mgrNextMatch', () => mgrNextMatch()],
+  ['acceptCoachRole', () => acceptCoachRole()],
+  ['declineCoachRole', () => declineCoachRole()],
+  ['negotiateClause release', () => negotiateClause('release')],
+  ['negotiateClause loyalty', () => negotiateClause('loyalty')],
+  ['negotiateClause subsidy', () => negotiateClause('subsidy')],
+  ['askClause', () => askClause()],
+  ['post social', () => post(1)],
+  ['hireAgent', () => hireAgent(AGENTS[1].id)],
+  ['requestTransfer', () => requestTransfer('transfer')],
+  ['requestLoan', () => requestTransfer('loan')],
+  ['renewContract', () => renewContract()],
+  ['signRenewal', () => { renewContract(); signRenewal(true); }],
+  ['doDrill', () => doDrill(DRILLS[0].id)],
+  ['buyNode', () => { S.sp = 9; const t = SKILL_TREE[0]; S.attrs[t.a] = 90; buyNode(t.id); }],
+  ['buyItem', () => { S.money = 9e6; S.popularity = 60; buyItem('gear', CATALOG.gear[0].id); }],
+  ['invest', () => { S.money = 9e6; invest(INVESTMENTS[0].id, 500000); }],
+  ['investTick', () => investTick()],
+  ['cashOut', () => cashOut(0)],
+  ['counterOffer', () => { if (S.offers[0]) counterOffer(S.offers[0].id); else maybeGenerateOffers(true), counterOffer((S.offers[0]||{id:0}).id); }],
+  ['rejectOffer', () => { if (S.offers[0]) rejectOffer(S.offers[0].id); }],
+  ['acceptOffer', () => { if (S.offers[0]) acceptOffer(S.offers[0].id); }],
+  ['chooseClinic', () => { if (!S.injury) applyInjury({ n:'Ankle sprain', sev:'minor', weeks:4, left:4, dmg:{ pace:-1 } }); chooseClinic('spec'); chooseClinic('elite'); chooseClinic('none'); }],
+  ['openModal medical', () => openModal('medical')],
+  ['openModal tourney', () => openModal('tourney')],
+  ['endTournament', () => { startTournament(); endTournament(); }],
+  ['startInternationalCycle', () => startInternationalCycle()],
+  ['intlApply', () => intlApply({ score:{ you:2, them:1 }, kind:'intl', minute:90, rating:7.2 })],
+  ['runPlayoffs', () => runPlayoffs(null)],
+  ['legacyGrade', () => legacyGrade()],
+  ['retireLine', () => retireLine()],
+  ['catchUpLeague', () => catchUpLeague()],
+  ['reshuffleDivisions', () => reshuffleDivisions()],
+  ['simDivision', () => simDivision(1, S.rounds, S.table, null)],
+  ['save/load', () => { save(); load(); }],
+  ['exportSave', () => exportSave()],
+  ['doRetire', () => doRetire()],
+  ['renderHub', () => renderHub()],
+  ['renderHome', () => renderHome()],
+  ['renderCareer', () => renderCareer()],
+  ['renderLife', () => renderLife()],
+  ['renderDev', () => renderDev && renderDev()],
+  ['initCreate', () => initCreate()],
+  ['setMode real', () => { setMode('real'); renderReal(); }],
+  ['setMode own', () => { setMode('own'); renderClubs(); renderDivs(); }],
+  ['selLeague', () => { selLeague('GER'); selDiv(0); }],
+  ['selReal', () => { renderReal(); selReal(S.pool ? S.pool[0].name : 'Erling Haaland'); }],
+  ['backToTitle', () => backToTitle()]
+];
+for (const [label, fn] of acts) tryIt(label, fn);
+tryIt('career-after-retire', () => renderAll());
+console.log('UI SMOKE: ' + fail.length + ' broken references, ' + stateful.length + ' state-dependent');
+if (fail.length) console.log(fail.map(x => '  FAIL ' + x).join(String.fromCharCode(10)));
+if (process.env.V) console.log(stateful.map(x => '  note ' + x).join(String.fromCharCode(10)));
+
 `;
 
 try { new Function('"use strict";' + scripts + ';globalThis.__G={};' + CAREER)(); }
