@@ -357,6 +357,11 @@
   </div>
 </div>
 
+<!-- the world is data, not code: db.js sets window.FC27_DB and nothing below hard-codes a
+     real club. Plain synchronous load, before the engine, so the ordering is guaranteed
+     even on a phone over a slow connection. -->
+<script src="db.js"></script>
+
 <script>
 /* =====================================================================================
    FOOTBALL CAREER 27 — single-file, text-driven player career sim
@@ -448,10 +453,18 @@ const POSITIONS = {
    dataset of the same shape and every club, player, coach, league rule and national
    team in the game follows. Nothing below hard-codes real football.
 ================================================================================== */
-const DB = window.FC27_DB || null;
-if (!DB) document.addEventListener('DOMContentLoaded', () => {
-  document.body.innerHTML = '<div style="padding:40px 22px;font-family:system-ui;color:#eaf1fb"><h2 style="font-size:18px;margin:0 0 8px">db.js is missing</h2><p style="color:#9fb3cd;font-size:14px;line-height:1.6">The engine loaded, but the universe file did not. Keep <b>db.js</b> next to <b>index.html</b>.</p></div>';
-});
+const DB_MISSING = !window.FC27_DB;
+/* An absent db.js must explain itself, not throw. Every loop below reads a collection, so an
+   empty universe keeps the page alive long enough to show the banner and stop boot(). */
+const DB = window.FC27_DB || { leagues: [], nations: [], coaches: [], players: [], tactics: {}, forms: {},
+                               regens: {}, meta: {}, intlCalendar: { windows: [] } };
+function showDbMissing() {
+  document.body.innerHTML = '<div style="padding:40px 22px;font-family:system-ui;color:#eaf1fb;max-width:34rem;margin:auto">'
+    + '<h2 style="font-size:18px;margin:0 0 8px">db.js is missing</h2>'
+    + '<p style="color:#9fb3cd;font-size:14px;line-height:1.6">The engine loaded, but the universe file did not. Keep <b>db.js</b> next to <b>index.html</b> and reload — it is loaded with '
+    + '<code style="color:#a9efc4">&lt;script src="db.js"&gt;</code> before the engine script.</p></div>';
+}
+if (DB_MISSING) showDbMissing();
 
 /* club registry: stable ids across division moves (a club keeps its id when promoted) */
 const CLUBS = {};
@@ -4131,6 +4144,7 @@ function toast(msg, kind) {
   if (box.children.length > 3) box.firstChild.remove();
 }
 function boot() {
+  if (DB_MISSING) return;   /* the banner is already up; a career with no clubs is not a career */
   initCreate(); buildDock();
   const saved = load();
   $('#tLoad').style.opacity = saved ? '1' : '.4';
