@@ -149,6 +149,9 @@ competitions, a centre-half with 15 goals in eight seasons and a knee problem.
 
 ## Deliberate choices
 
+- **The men's game only.** No women's competitions and no mixed pools: the universe is the men's
+  divisions, and any supplied dataset is filtered to them on the way in (`tools/import-players.js`
+  drops the rows a file marks as women's and keeps everything else, blank gender included).
 - **Real names by default.** Clubs, players, coaches, leagues and national teams are the real 2026/27
   set, held in `db.js`. Names you invent are not the product here; the universe is.
 - **Regens.** Retired and near-retired names are replaced over the seasons, so the pool keeps

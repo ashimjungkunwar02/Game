@@ -7,7 +7,7 @@
   leagues. Nothing is written unless you pass --apply.
 
       node tools/import-players.js path/to/players.csv                  report only
-      node tools/import-players.js path/to/players.csv --gender female   the filter you want
+      node tools/import-players.js path/to/players.csv                  men's rows only (default)
       node tools/import-players.js path/to/players.csv --apply           rewrite the players block in db.js
       node tools/import-players.js path/to/players.csv --emit db.women.js --new-leagues
                                                                          also write league blocks for unknown clubs
@@ -31,7 +31,7 @@ const file = argv.find(a => !a.startsWith('--'));
 const flags = new Set(argv.filter(a => a.startsWith('--')));
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.split('=').slice(1).join('=') : d; };
 if (!file) { console.log('usage: node tools/import-players.js <players.csv> [--gender=female|male|all] [--emit=out.js] [--apply] [--new-leagues]'); process.exit(1); }
-const want = opt('gender', 'female');
+const want = opt('gender', 'male');
 if (!fs.existsSync(file)) { console.log('no such file: ' + file + '\nThe CSV did not reach the sandbox — re-attach it (or copy it into /home/user) and run me again.'); process.exit(2); }
 
 /* ---------- csv parse (quoted fields, embedded commas, CRLF) ---------- */
@@ -72,16 +72,21 @@ if (missing.length) console.log('note: no column for ' + missing.join(', ') + ' 
 /* ---------- filters ---------- */
 const FEMALE = /^(f|female|w|women|womens|ladies|1|girl)$/i, MALE = /^(m|male|man|men|0|boy)$/i;
 function genderOf(r) { return idx.gender >= 0 ? String(r[idx.gender] || '').trim() : ''; }
+/* This game covers the men's divisions only, full stop: 'male' means "everything the file does
+   not mark as women's", so a dump with a blank or missing gender column still lands in full. */
 function keep(r) {
-  if (want === 'all' || idx.gender < 0) return true;
+  if (idx.gender < 0 || want === 'all') return true;
   const g = genderOf(r);
-  return want === 'female' ? FEMALE.test(g) : MALE.test(g);
+  return want === 'female' ? FEMALE.test(g) : !FEMALE.test(g);
 }
+let dropped = 0;
+if (idx.gender >= 0 && want !== 'all')
+  dropped = rows.slice(1).filter(r => want === 'male' ? FEMALE.test(genderOf(r)) : MALE.test(genderOf(r))).length;
 if (idx.gender >= 0) {
   const hist = new Map();
   for (const r of rows.slice(1)) { const g = String(r[idx.gender] || '').trim() || '(blank)'; hist.set(g, (hist.get(g) || 0) + 1); }
   console.log('gender column values: ' + [...hist.entries()].sort((x, y) => y[1] - x[1]).slice(0, 6).map(([k, v]) => '"' + k + '"×' + v).join('  ') +
-    (want !== 'all' ? '   → keeping "' + want + '"' : '   → keeping everything'));
+(want === 'all' ? '   → keeping everything' : '   → excluding the women\'s rows'));
 }
 const body = rows.slice(1).filter(keep);
 
@@ -173,7 +178,9 @@ for (const p of unknown) { const g = p.league || '(no league column)'; if (!grou
 const dupes = out.length - new Set(out.map(p => (p.name + '|' + p.clubRaw).toLowerCase())).size;
 const noNat = out.filter(p => p.nat === '???').reduce((a, p) => a.set(p.clubRaw || '?', (a.get(p.clubRaw || '?') || 0) + 1), new Map());
 
-console.log('file      ' + path.basename(file) + '  ·  ' + (rows.length - 1) + ' rows  ·  gender filter "' + (idx.gender < 0 ? 'none — kept all' : want) + '"');
+console.log('file      ' + path.basename(file) + '  ·  ' + (rows.length - 1) + ' rows  ·  ' +
+  (idx.gender < 0 ? 'no gender column — every row is eligible' : dropped + ' women\'s rows excluded') +
+  '  ·  this game covers the men\'s divisions only');
 console.log('players   ' + out.length + ' kept (' + known.length + ' map onto existing clubs, ' + unknown.length + ' unknown)' + (dupes ? '  ·  ' + dupes + ' duplicate names folded' : ''));
 const posTally = out.reduce((a, p) => a.set(p.pos, (a.get(p.pos) || 0) + 1), new Map());
 console.log('positions ' + [...posTally.entries()].sort((x, y) => y[1] - x[1]).map(([k, v]) => k + ' ' + v).join('  '));
