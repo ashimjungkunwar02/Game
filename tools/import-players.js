@@ -189,7 +189,7 @@ for (const p of unknown) { const g = p.league || '(no league column)'; if (!grou
 const dupes = out.length - new Set(out.map(p => (p.name + '|' + p.clubRaw).toLowerCase())).size;
 const noNat = out.filter(p => p.nat === '???').reduce((a, p) => a.set(p.clubRaw || '?', (a.get(p.clubRaw || '?') || 0) + 1), new Map());
 
-console.log('file      ' + path.basename(file) + '  ·  ' + (rows.length - 1) + ' rows  ·  ' +
+console.log('file      ' + path.basename(file) + '  ·  ' + (rows.length - 1) + (rows.length - 1 === 1 ? ' row' : ' rows') + '  ·  ' +
   (idx.gender < 0 ? 'no gender column — every row is eligible' : (dropped === 1 ? 'one women\'s row excluded' : dropped + ' women\'s rows excluded')) +
   '  ·  this game covers the men\'s divisions only');
 console.log('players   ' + out.length + ' kept (' + known.length + ' map onto existing clubs, ' + unknown.length + ' unknown)' + (dupes ? '  ·  ' + dupes + ' duplicate names folded' : ''));
