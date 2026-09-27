@@ -15,11 +15,17 @@ Everything persists to `localStorage` after every action; save codes export/impo
 
 ## Start
 
+Open `index.html` — that is the whole app. It needs exactly two files in one folder (`index.html`
++ `db.js`) and nothing else: the universe arrives through a plain `<script src="db.js">` tag, so
+there is no `fetch`, no CORS rule and no build step — it runs from `file://` as happily as from a
+static server (`python3 -m http.server 8080`). Fonts and Tailwind come from CDNs; after a warm
+cache the game still plays offline, just plainer-looking.
+
 Two ways in, both from the same universe:
 
 | Mode | You are | What you pick |
 |---|---|---|
-| **A — Real Player Career** | An existing professional from the 2026/27 pool — 124 real players in a searchable browser, and the same names are your rivals for the Golden Boot. You take over his attributes, age, club, wage and contract situation and play out what is left of his career. | The player |
+| **A — Real Player Career** | An existing professional from the 2026/27 pool — 3,125 real players with their real attributes, in a searchable browser, and the same names are your rivals for the Golden Boot. You take over his attributes, age, club, wage and contract situation and play out what is left of his career. | The player |
 | **B — Create Your Own** | A 16–22 year old with a blank name. | Club (any of 192 clubs across 10 divisions), position, nationality, starting OVR budget and difficulty |
 
 Difficulty is not cosmetic: `amateur` / `pro` / `elite` scale how fast manager favour moves, how
@@ -192,6 +198,11 @@ node tools/simulate.js      plays scripted careers + a 36-config sweep (6 positi
                             OVR/trust ranges, then a save round-trip
 node tools/uismoke.js       renders every tab and every modal and calls ~50 handlers, so a
                             click that would throw in a browser throws here instead
+node tools/pageorder.js     walks index.html's <script> tags in document order and executes them the
+                            way an HTML parser would — external files included. It fails if the page
+                            does not load db.js before the engine reads window.FC27_DB. Every other tool concatenates
+                            the two files by hand, so this is the only one that can catch a page that forgot its own
+                            data (which happened: v1.5 split the world out and never added the tag)
 ```
 
 Current state: **DB valid (192 clubs, 3,125 players, 99 coaches, 150 nations)**, sweep clean across
