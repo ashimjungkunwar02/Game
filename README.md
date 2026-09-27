@@ -34,16 +34,20 @@ simulation never needs to change. Rows are deliberately compact `|`-delimited st
 ```
 nations:  "CODE|Name|Strength|Confed"              strength 40–92
 clubs:    "Name|SHORT|Strength|capacity|networth"   strength 55–92
-players:  "Name|NAT|POS|OVR|AGE|clubSHORT"
+players:  "Name|NAT|POS|OVR|AGE|clubSHORT[|pace,shooting,passing,dribbling,defending,physical]"
+            the attribute tail is optional: with it, that player's six are real; without it,
+            the game models them from OVR + position + a name-seeded variance
 coaches:  "Name|NAT|Tactic|Age|clubSHORT"            …or INTL:<NATCODE> for a national job
 leagues:  { code, name, confed, tv, divs: [[top division rows], [second division rows]],
             promotion: { auto, playoff, legs, cross, gapRule, final, finalName },
             relegation: { … } }
 ```
 
-Shipped: **5 leagues × 2 divisions (192 clubs, 10 divisions), 124 real players, 99 real coaches with
-a tactical identity, 70 national teams, per-position attribute templates, and a real international
-calendar.** Regens are generated from name parts as seasons go by, so new names keep arriving.
+Shipped: **5 leagues × 2 divisions (192 clubs, 10 divisions), 3,125 real players — every one of them
+with the six attributes the export carried — 99 real coaches with a tactical identity, 150 national
+teams, per-position attribute templates, and a real international calendar.** Named first XIs exist
+for 174 of the 192 clubs; the other 18 (mostly second-tier sides the export does not list) are filled
+by the generator, which is what the game has always done. Regens are generated from name parts as seasons go by, so new names keep arriving.
 Nothing in the engine is hard-coded to a club or a league, so an out-of-date file cannot silently
 half-work: `node tools/validate-db.js` reads the dataset the way the engine does and fails loudly on
 a broken one — division `size` must equal the number of club rows, codes must be unique, every
@@ -55,6 +59,51 @@ legs, cross-division ties and the "big gap, no play-off" test all come from each
 So the Championship settles 3rd v 6th and 4th v 5th over two legs with a one-off final at Wembley,
 the Bundesliga plays its `Relegations-Playoff` against 2. Bundesliga's 3rd, Serie B only plays off
 when the gap is under five points, and the Premier League just drops three.
+
+### How the player export got in
+
+`players.csv` at the repo root is the supplied dataset (19,789 men's and women's rows, EA FC 27
+column names). `tools/import-players.js` is the only thing that reads it:
+
+```
+node tools/import-players.js players.csv                      # report only, nothing written
+node tools/import-players.js players.csv --report=map.txt     # every club pairing, one line each
+node tools/import-players.js players.csv --strengths          # db strength vs the imported best XI
+node tools/import-players.js - --squad=14 < export.csv        # stdin, thinner squads
+node tools/import-players.js players.csv --apply              # rewrite db.js
+```
+
+What it decides, and why:
+
+- **Gender is a filter, not a column.** Rows the file marks as women's football are dropped
+  (1,940 of them); a blank gender is kept, because most men's exports have no such column.
+- **A club is matched by alias, then by name inside its own country's leagues.** `TOT → spurs`,
+  `MUN → man utd`, `INT → Lombardia FC` (the export ships some Serie A clubs anonymised). Fuzzy
+  matching across countries is how Barcelona briefly acquired Barcelona SC of Guayaquil, so the
+  matcher will now only accept a name match from a league belonging to that club's country, and
+  reserve/B teams never qualify. 175 of 192 clubs pair up.
+- **OVR is the file's overall, attributes are the file's profile.** Our position weights read
+  3.1 points off the export's overall on average, so each imported six is shifted as a set until
+  the game's own formula reproduces that player's overall. Real strengths and real weaknesses
+  survive; a takeover does not jump the moment the game recalculates.
+- **Squad cap, not full rosters.** 18 outfielders per club (min 17, median 25 rows per squad) keeps
+  db.js at ~198 KB and every division populated; fringe names are the first to go.
+- **Age comes from `birthdate`, measured at the snapshot date** (2026-07-01), not from a column that
+  may be missing.
+- **Nations are added as needed.** The file knows 150 countries; the ten leagues knew 70. The
+  importer appends the missing nation rows to `db.js`, with strength from a ladder over that
+  country's best imported player, so `NATION[code]` never misses and a Guinean or Kosovar can be
+  called up.
+- **One name, one player.** Duplicates across clubs are dropped (the search box and a takeover key
+  off the name).
+- **`club.str` is left alone.** Where the imported best XI averages higher than the strength the
+  game set, `--strengths` shows the gap (31 clubs sit more than 5 out, all of them lower-division).
+  Strength also carries balance meaning in the engine — the value, wage and trust models are
+  calibrated on it — so it is a deliberate choice, not an oversight, to leave it and let the report
+  speak.
+
+`--apply` rewrites exactly two arrays in `db.js` (`players:` and `nations:`) and never touches the
+leagues, rules or clubs. `node tools/validate-db.js` is the check afterwards.
 
 ## What the game actually simulates
 
@@ -145,13 +194,18 @@ node tools/uismoke.js       renders every tab and every modal and calls ~50 hand
                             click that would throw in a browser throws here instead
 ```
 
-Current state: **DB valid (192 clubs, 127 players, 99 coaches)**, sweep clean across 36 careers /
-11,592 simulated weeks, UI smoke clean, save round-trips. Careers come out looking like careers — a 17-year-old at a Championship club fighting
+Current state: **DB valid (192 clubs, 3,125 players, 99 coaches, 150 nations)**, sweep clean across
+36 careers / 11,592 simulated weeks, UI smoke clean, save round-trips — the state is ~650 KB of it
+and the stored save ~112 KB, because the pool is written back as a delta against `db.js` (only the
+players whose rating, age or season tally moved, plus regens) rather than 3,125 objects per write. Careers come out looking like careers — a 17-year-old at a Championship club fighting
 to hold a bench spot, a 96-OVR takeover at a top club scoring 28–50 a season across all
 competitions, a centre-half with 15 goals in eight seasons and a knee problem.
 
 ## Deliberate choices
 
+- **Real numbers where the export has them.** An imported player keeps his six attributes; a generated
+  one and the 18 uncovered clubs keep the modelled ones. The two coexist because the only contract the
+  engine has with the data is `Name|NAT|POS|OVR|AGE|club`, and the attribute tail is optional.
 - **The men's game only.** No women's competitions and no mixed pools: the universe is the men's
   divisions, and any supplied dataset is filtered to them on the way in (`tools/import-players.js`
   drops the rows a file marks as women's and keeps everything else, blank gender included).

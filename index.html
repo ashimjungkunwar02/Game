@@ -539,11 +539,15 @@ function attrsFromOvr(ovr, pos, seedStr, age) {
 const POS_RANK = { GK: 0 };
 function seedPool() {
   const pool = DB.players.map(row => {
-    const [name, nat, pos, ovr, age, club] = row.split('|');
+    const [name, nat, pos, ovr, age, club, at] = row.split('|');
+    /* the optional tail is the real six: pace,shooting,passing,dribbling,defending,physicality */
+    const nums = (at || '').split(',').map(x => +x);
+    const realAttrs = nums.length === 6 && nums.every(x => x >= 15 && x <= 99)
+      ? { pace:nums[0], shooting:nums[1], passing:nums[2], dribbling:nums[3], defending:nums[4], physical:nums[5] } : null;
     const c = CLUBS[name + '_'] || Object.values(CLUBS).find(x => x.code === club);
     return { name, nat, pos, ovr: +ovr, age: +age, club: c ? c.name : club, clubCode: club,
              lg: c ? c.lg : 'ENG', div: c ? c.div : 0, str: c ? c.str : 70,
-             value: 0, g: 0, a: 0, apps: 0 };
+             attrs: realAttrs, value: 0, g: 0, a: 0, apps: 0 };
   }).filter(p => p.pos !== 'GK');
   pool.forEach(p => { p.ovr = clamp(p.ovr - (p.age >= 33 ? (p.age - 32) : 0) + (p.age <= 19 ? 1 : 0), 50, 96);
     p.value = playerValue(p); });
@@ -905,7 +909,9 @@ function blankState(p) {
   const rank = D.clubs.findIndex(row => row.startsWith(club.name + '|')) + 1;
   if (mode === 'real' && p.real) {
     const R = p.real; pos = R.pos; age = R.age;
-    ovr = R.ovr; attrs = attrsFromOvr(ovr, pos, R.name, age);
+    ovr = R.ovr; attrs = R.attrs ? { pace:R.attrs.pace, shooting:R.attrs.shooting, passing:R.attrs.passing,
+                                       dribbling:R.attrs.dribbling, defending:R.attrs.defending, physical:R.attrs.physical }
+                                 : attrsFromOvr(ovr, pos, R.name, age);
     pot = Math.max(ovr, ovr + (age <= 19 ? ri(6, 14) : age <= 22 ? ri(3, 8) : age <= 26 ? ri(0, 3) : 0));
     wage = Math.round(clamp(Math.pow(clamp((ovr - 45) / 50, 0, 1), 3.3) * 3_600_000, 1_200, Math.min(780_000, WAGE_CAP)) / 100) * 100;
     fav = ovr >= club.str - 1 ? ri(78, 96) : ovr >= club.str - 6 ? ri(52, 74) : ri(24, 48);
@@ -1086,7 +1092,45 @@ function favorFromRating(x, ctx) {
 }
 
 /* ---- persistence ---- */
-function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S, (k, v) => k === '_pl' ? undefined : v)); } catch (e) {} }
+/* The universe is 3,130 real players and the phone writes this save after every action, so the
+   pool goes into storage as a *delta* against the database rows it came from: only players whose
+   rating, age or season tally actually moved, and only as numbers. Regens — which are not in
+   db.js — are stored in full. 650 KB becomes ~40 KB and nothing is lost on reload. */
+let _SEED = null, _SEEDI = null;
+function seedIndex() {
+  if (!_SEEDI) { _SEED = WORLD0.slice(); _SEEDI = new Map(_SEED.map((p, i) => [p.name + '|' + p.club, i])); }
+  return _SEEDI;
+}
+function packPool() {
+  /* order + deltas + regens: the pool's identity has to survive too, because regens retire players */
+  const ix = seedIndex(), order = [], d = [], e = [];
+  S.pool.forEach((p, n) => {
+    const i = ix.get(p.name + '|' + p.club);
+    if (i === undefined) { e.push([p.ovr, p.age, p.g | 0, p.a | 0, p.apps | 0, p.name, p.nat, p.pos, p.club, p.value | 0, p.clubCode || '', p.regen ? 1 : 0, p.pot || 85]); order.push(-e.length); return; }
+    order.push(i);
+    const s = _SEED[i];
+    if (s.ovr !== p.ovr || s.age !== p.age || p.g || p.a || p.apps) d.push([n, p.ovr, p.age, p.g | 0, p.a | 0, p.apps | 0]);
+  });
+  return { o: order, d, e };
+}
+function unpackPool(pack) {
+  if (!pack || Array.isArray(pack)) return Array.isArray(pack) ? pack : seedPool();   // an older, unsplit save
+  const base = seedPool(), out = [];
+  for (const i of pack.o) {
+    if (i >= 0) { out.push(base[i] ? Object.assign({}, base[i]) : null); continue; }
+    const r = pack.e[-i - 1]; if (!r) { out.push(null); continue; }
+    const c = CLUBS[r[10]] || Object.values(CLUBS).find(x => x.name === r[8]) || {};
+    out.push({ name: r[5], nat: r[6], pos: r[7], club: r[8], ovr: r[0], age: r[1], value: r[9] || 0,
+               g: r[2], a: r[3], apps: r[4], clubCode: r[10] || c.code || '', lg: c.lg || 'ENG',
+               div: c.div || 0, str: c.str || 70, regen: r[11] === 1, pot: r[12] });
+  }
+  const pool = out.filter(Boolean);
+  for (const r of pack.d) { const p = pool[r[0]]; if (p) { p.ovr = r[1]; p.age = r[2]; p.g = r[3]; p.a = r[4]; p.apps = r[5]; } }
+  return pool;
+}
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S, (k, v) => k === '_pl' ? undefined : (k === 'pool' ? packPool() : v))); } catch (e) {}
+}
 /* v1 saves were built on a fictional 20-club league; migrate them onto the real database
    rather than throwing a career away. */
 function migrate(o) {
@@ -1112,7 +1156,9 @@ function migrate(o) {
 }
 function load() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null;
-    const o = JSON.parse(raw); if (!o || (o.v !== 1 && o.v !== 2) || !o.club) return null; return migrate(o); } catch (e) { return null; }
+    const o = JSON.parse(raw); if (!o || (o.v !== 1 && o.v !== 2) || !o.club) return null;
+    if (o.pool) o.pool = unpackPool(o.pool);
+    return migrate(o); } catch (e) { return null; }
 }
 function queueMsg(kind, title, body, act) {
   S.msgs.unshift({ id: keyOf(), kind, title, body, week: S.week, season: S.seasonNo, read: false, act: act || null });
@@ -1320,9 +1366,17 @@ function simDivision(roundIdx, ids, T, skipId) {
   });
 }
 /* the golden-boot race is the real pool: whoever plays for that club scores */
+/* a real squad list is thousands of rows, so goal credit looks a club up by index instead of
+   scanning the pool for every simulated match in every league */
+let _PC = { src: null, map: null };
+function clubSquad(name) {
+  if (_PC.src !== S.pool) { const m = Object.create(null);
+    for (const p of S.pool) (m[p.club] || (m[p.club] = [])).push(p); _PC = { src: S.pool, map: m }; }
+  return _PC.map[name] || [];
+}
 function creditClubGoals(club, goals) {
   if (!club || !goals) return;
-  const mates = S.pool.filter(p => p.club === club.name && p.pos !== 'GK');
+  const mates = clubSquad(club.name);
   if (!mates.length) return;
   let left = goals;
   while (left > 0) {
@@ -1346,11 +1400,17 @@ function standings(T, lg, div) {
     .sort((a, b) => b.t.pts - a.t.pts || (b.t.gf - b.t.ga) - (a.t.gf - a.t.ga) || b.t.gf - a.t.gf);
 }
 function myPosition() { return standings().findIndex(r => r.c.id === myClub().id) + 1; }
+let _FIX = { season: null, by: {} };
+function foreignFixtures(lg) {   /* the other leagues' calendar does not change mid-season */
+  if (_FIX.season !== S.seasonNo) _FIX = { season: S.seasonNo, by: {} };
+  if (!_FIX.by[lg]) { const clubs = parseClubs(lg, 0); _FIX.by[lg] = { clubs, rd: buildRounds(clubs.map(c => c.id)) }; }
+  return _FIX.by[lg];
+}
 function simStars(weekIdx) { /* foreign leagues: keep the stars busy for the boot race */
   DB.leagues.forEach(L => {
     if (L.code === S.club.lg) return;
-    const clubs = parseClubs(L.code, 0);
-    const rd = buildRounds(clubs.map(c => c.id))[weekIdx % 38] || [];
+    const f = foreignFixtures(L.code), clubs = f.clubs;
+    const rd = f.rd[weekIdx % (f.rd.length || 38)] || [];
     rd.forEach(([h, a]) => {
       const H = clubs.find(c => c.id === h), A = clubs.find(c => c.id === a);
       if (!H || !A) return;
@@ -3444,7 +3504,7 @@ function renderModal() {
         return `<button class="opt !p-2 ${M.tactic === key ? '!border-emerald-200/60' : ''}" onclick="setTactic('${key}')"><div class="text-[11.5px] font-bold uppercase font-disp tracking-wide">${t.n}</div>
         <div class="text-[9.5px] text-slate-400 leading-snug">${t.d}</div></button>`; }).join('')}</div>`)}
       ${card('Squad', `<div class="text-[11px] text-slate-400 mb-1.5">Your old teammates, now your problem. Rating is the number they will accept.</div>
-        ${S.pool.filter(p => p.club === S.club.name).sort((a, b) => b.ovr - a.ovr).slice(0, 7).map(p => `<div class="flex items-center gap-2 text-[11.5px] py-0.5">
+        ${clubSquad(S.club.name).slice().sort((a, b) => b.ovr - a.ovr).slice(0, 7).map(p => `<div class="flex items-center gap-2 text-[11.5px] py-0.5">
         <span class="chip reserve !text-[8px] !py-1">${p.pos}</span><span class="flex-1 truncate">${p.name}</span><b class="fmt">${p.ovr}</b><span class="text-[10px] text-slate-500 fmt">${p.g}g</span></div>`).join('')}`)}`,
       `<div class="grid grid-cols-2 gap-2">${btn('Next match', 'mgrNextMatch()', 'solid tiny')}${btn('Take a week off', 'advanceWeek(true)', 'tiny')}</div>`);
   }

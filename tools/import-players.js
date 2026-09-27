@@ -2,41 +2,37 @@
 /*
   Football Career 27 — player CSV importer.
 
-  Turns any big players export (FIFA-style dumps, FBref pulls, a league's own list) into rows that
-  fit db.js, optionally grouping the clubs the universe does not know yet into new women's (or men's)
-  leagues. Nothing is written unless you pass --apply.
+  Turns a big players export (EA/FIFA-style dumps, FBref pulls, a league's own list) into rows that
+  fit db.js: real six-attribute values, real ages, positions folded onto the game's ten, club names
+  mapped onto the 192 clubs in the universe. Nothing is written unless you pass --apply.
 
-      node tools/import-players.js path/to/players.csv                  report only
-      node tools/import-players.js path/to/players.csv                  men's rows only (default)
-      node tools/import-players.js path/to/players.csv --apply           rewrite the players block in db.js
-      node tools/import-players.js path/to/players.csv --emit db.women.js --new-leagues
-                                                                         also write league blocks for unknown clubs
+      node tools/import-players.js players.csv                     report only (men's rows only)
+      node tools/import-players.js players.csv --csv -             read a pasted file from stdin
+      node tools/import-players.js players.csv --report=map.txt    write the club pairing table
+      node tools/import-players.js players.csv --apply             rewrite the players array in db.js
+      node tools/import-players.js players.csv --apply --squad=20  squad size per club (default 18)
 
-  Columns are found by alias, so the file does not have to be shaped for us. Recognised headers:
-      name:         name, player, player_name, longname, fullname, short name
-      gender:       gender, sex, role (values f/female/w/women vs m/male)
-      age:          age
-      overall:      overall, ovr, rating, best_overall, potential→ignored
-      position:     position, positions, pos, role_position, preferred positions, common position
-      nationality:  nationality, nation, country, cid
-      club:         club, team, current_team, team_name
-      league:       league, competition, league_name, division
-      value/wage:   value_euro, wage_euro (used only for sanity warnings)
+  The game covers the men's divisions only, so rows the file marks as women's are dropped. The
+  column is matched loosely on purpose: "Women's Football", "F", "female", "W" all count, and a
+  blank gender is kept (most men's exports carry no gender column at all).
+
+  Row shape written into db.js:  Name|NAT|POS|OVR|AGE|clubSHORT|P,SH,PA,DR,DE,PH
+  The attribute tail is optional; the engine derives attributes from OVR when a row has none.
 */
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const argv = process.argv.slice(2);
 let file = argv.find(a => !a.startsWith('--'));
 const flags = new Set(argv.filter(a => a.startsWith('--')));
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.split('=').slice(1).join('=') : d; };
-if (!file) { console.log('usage: node tools/import-players.js <players.csv> [--gender=female|male|all] [--emit=out.js] [--apply] [--new-leagues]'); process.exit(1); }
+if (!file) { console.log('usage: node tools/import-players.js <players.csv|-> [--gender=male|female|all] [--squad=18] [--apply] [--report=file]'); process.exit(1); }
 const want = opt('gender', 'male');
-if (file === '-') {                                        // read a pasted CSV from stdin
-  const tmp = path.join(require('os').tmpdir(), 'fc27-pasted-' + process.pid + '.csv');
-  fs.writeFileSync(tmp, fs.readFileSync(0, 'utf8'));
-  file = tmp;
-  console.log('(reading ' + fs.statSync(tmp).size + ' bytes from stdin → ' + tmp + ')');
+const SQUAD = +opt('squad', 18);
+if (file === '-') {
+  const tmp = path.join(os.tmpdir(), 'fc27-pasted-' + process.pid + '.csv');
+  fs.writeFileSync(tmp, fs.readFileSync(0, 'utf8')); file = tmp;
 }
 if (!fs.existsSync(file)) {
   console.log('no such file: ' + file);
@@ -45,7 +41,7 @@ if (!fs.existsSync(file)) {
   process.exit(2);
 }
 
-/* ---------- csv parse (quoted fields, embedded commas, CRLF) ---------- */
+/* ---------------------------------------------------------------- csv */
 function parseCSV(text) {
   const rows = []; let row = [], cur = '', q = false;
   for (let i = 0; i < text.length; i++) {
@@ -58,186 +54,370 @@ function parseCSV(text) {
     cur += c;
   }
   if (cur.length || row.length) { row.push(cur); rows.push(row); }
-  return rows.filter(r => r.length > 1 || (r[0] || '').trim() !== '');
+  return rows.filter(r => r.some(x => String(x).trim() !== ''));
 }
 const ALIAS = {
-  name: ['name', 'player', 'player_name', 'longname', 'full_name', 'fullname', 'short name', 'shortname'],
+  name: ['common_name', 'name', 'player', 'player_name', 'longname', 'full_name', 'short name', 'shortname'],
+  first: ['first_name'], last: ['last_name'],
   gender: ['gender', 'sex', 'gender_code'],
-  age: ['age'],
-  ovr: ['overall', 'ovr', 'rating', 'best_overall', 'global'],
-  pos: ['position', 'positions', 'pos', 'preferred positions', 'preferred_positions', 'common position', 'common_position', 'role_position'],
-  nat: ['nationality', 'nation', 'country', 'cid', 'nationality_name'],
+  age: ['age'], birth: ['birthdate', 'birth_date', 'dob'],
+  ovr: ['overall_rating', 'overall', 'ovr', 'rating', 'best_overall'],
+  pos: ['position', 'positions', 'pos', 'preferred positions', 'preferred_positions', 'common position', 'role_position'],
+  alt: ['alternate_positions', 'alt_positions', 'other positions'],
+  nat: ['nationality', 'nation', 'country', 'cid'],
   club: ['club', 'team', 'current_team', 'team_name', 'club_name'],
   league: ['league', 'league_name', 'competition', 'division', 'comp'],
-  value: ['value_euro', 'value'], wage: ['wage_euro', 'wage']
+  pace: ['pace'], shooting: ['shooting'], passing: ['passing'], dribbling: ['dribbling'],
+  defending: ['defending', 'defense'], physical: ['physicality', 'physical']
 };
 const rows = parseCSV(fs.readFileSync(file, 'utf8'));
 const head = rows[0].map(h => h.trim().toLowerCase().replace(/^\ufeff/, ''));
 const col = k => { for (const a of ALIAS[k]) { const i = head.indexOf(a); if (i >= 0) return i; }
   const loose = head.findIndex(h => ALIAS[k].some(a => h.includes(a))); return loose >= 0 ? loose : -1; };
 const idx = {}; for (const k of Object.keys(ALIAS)) idx[k] = col(k);
-if (idx.name < 0 || idx.ovr < 0) { console.log('cannot find a name and an overall column. header was: ' + head.join(', ')); process.exit(2); }
-const missing = ['age', 'pos', 'nat', 'club'].filter(k => idx[k] < 0);
-if (missing.length) console.log('note: no column for ' + missing.join(', ') + ' — those fields will be derived or defaulted');
-
-/* ---------- filters ---------- */
-const FEMALE = /^(f|female|w|women|womens|ladies|1|girl)$/i, MALE = /^(m|male|man|men|0|boy)$/i;
-function genderOf(r) { return idx.gender >= 0 ? String(r[idx.gender] || '').trim() : ''; }
-/* This game covers the men's divisions only, full stop: 'male' means "everything the file does
-   not mark as women's", so a dump with a blank or missing gender column still lands in full. */
+if (idx.name < 0 || idx.ovr < 0) { console.log('cannot find a name and an overall/rating column. header was: ' + head.join(', ')); process.exit(2); }
+const WOMS = /wom(en|men'?s|ans)|female|\bladies\b|\bgirls?\b|^f$|^w$/i;
+const genderOf = r => idx.gender >= 0 ? String(r[idx.gender] || '').trim() : '';
 function keep(r) {
   if (idx.gender < 0 || want === 'all') return true;
   const g = genderOf(r);
-  return want === 'female' ? FEMALE.test(g) : !FEMALE.test(g);
-}
-let dropped = 0;
-if (idx.gender >= 0 && want !== 'all')
-  dropped = rows.slice(1).filter(r => want === 'male' ? FEMALE.test(genderOf(r)) : MALE.test(genderOf(r))).length;
-if (idx.gender >= 0) {
-  const hist = new Map();
-  for (const r of rows.slice(1)) { const g = String(r[idx.gender] || '').trim() || '(blank)'; hist.set(g, (hist.get(g) || 0) + 1); }
-  console.log('gender column values: ' + [...hist.entries()].sort((x, y) => y[1] - x[1]).slice(0, 6).map(([k, v]) => '"' + k + '"×' + v).join('  ') +
-(want === 'all' ? '   → keeping everything' : '   → excluding the women\'s rows'));
+  const female = WOMS.test(g);
+  return want === 'female' ? female : !female;
 }
 const body = rows.slice(1).filter(keep);
+const excluded = idx.gender >= 0 && want !== 'all' ? rows.length - 1 - body.length : 0;
 
-/* ---------- normalisers ---------- */
-const strip = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
-function posOf(p) {
-  const raw = strip(p).toUpperCase().replace(/[^A-Z,\/\- ]/g, '');
-  const parts = raw.split(/[,\/]| - | OR /).map(x => x.trim()).filter(Boolean);
-  const map = { ST: 'ST', FW: 'ST', CF: 'ST', LS: 'ST', RS: 'ST', LW: 'LW', RW: 'RW', LF: 'LW', RF: 'RW',
-    LM: 'LW', RM: 'RW', CAM: 'CAM', AM: 'CAM', CM: 'CM', CDM: 'CDM', DM: 'CDM', MDM: 'CDM', MC: 'CM',
-    LCB: 'CB', RCB: 'CB', CB: 'CB', D: 'CB', DF: 'CB', LB: 'LB', RB: 'RB', LWBL: 'LB', LWB: 'LB', RWB: 'RB',
-    GK: 'GK', SK: 'GK', goalkeeper: 'GK' };
-  for (const x of parts) if (map[x]) return map[x];
-  for (const x of parts) { if (/^L/.test(x)) return 'LB'; if (/^R/.test(x)) return 'RB'; if (/^M/.test(x)) return 'CM'; if (/^D/.test(x)) return 'CB'; if (/^A/.test(x)) return 'CAM'; if (/^S|^F|^C$/.test(x)) return 'ST'; }
+/* ---------------------------------------------------------------- values */
+const deaccent = s => String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function posOf(primary, alt) {
+  const map = { ST: 'ST', FW: 'ST', CF: 'ST', LS: 'ST', RS: 'ST', LW: 'LW', RW: 'RW', LF: 'LW', RF: 'RW', LM: 'LW', RM: 'RW',
+    CAM: 'CAM', AM: 'CAM', CM: 'CM', CDM: 'CDM', DM: 'CDM', LB: 'LB', RB: 'RB', LW: 'LW', RW: 'RW',
+    CB: 'CB', DC: 'CB', D: 'CB', GK: 'GK', SK: 'GK' };
+  const tokens = String(primary || '').concat(' ', String(alt || '')).toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+  for (const t of tokens) if (map[t]) return map[t];
+  for (const t of tokens) { if (/^GK?$/.test(t)) return 'GK'; if (/^L/.test(t)) return 'LB'; if (/^R/.test(t)) return 'RB';
+    if (/^C/.test(t)) return 'CB'; if (/^M/.test(t)) return 'CM'; if (/^A/.test(t)) return 'CAM'; if (/^[SF]/.test(t)) return 'ST'; }
   return 'CM';
 }
-const COUNTRY = { 'england':'ENG','scotland':'SCO','wales':'WAL','ireland':'IRL','northern ireland':'NIR','france':'FRA','germany':'GER','spain':'ESP','italy':'ITA','portugal':'POR','netherlands':'NED','belgium':'BEL','switzerland':'SUI','austria':'AUT','sweden':'SWE','norway':'NOR','denmark':'DEN','finland':'FIN','iceland':'ISL','poland':'POL','czechia':'CZE','czech republic':'CZE','ukraine':'UKR','romania':'ROU','serbia':'SRB','croatia':'CRO','bosnia and herzegovina':'BIH','bosnia':'BIH','hungary':'HUN','greece':'GRE','russia':'RUS','turkey':'TUR','slovenia':'SLO','slovakia':'SVK','albania':'ALB','georgia':'GEO','united states':'USA','usa':'USA','canada':'CAN','mexico':'MEX','costa rica':'CRC','jamaica':'JAM','panama':'PAN','haiti':'HAI','brazil':'BRA','argentina':'ARG','uruguay':'URU','chile':'CHI','colombia':'COL','venezuela':'VEN','ecuador':'ECU','peru':'PER','paraguay':'PAR','bolivia':'BOL','japan':'JPN','china':'CHN','north korea':'PRK','south korea':'KOR','australia':'AUS','new zealand':'NZL','ghana':'GHA','nigeria':'NGA','cameroon':'CMR','senegal':'SEN','morocco':'MAR','south africa':'RSA','zambia':'ZAM','ivory coast':'CIV','mali':'MLI','algeria':'ALG','tunisia':'TUN','egypt':'EGY','kenya':'KEN','ethiopia':'ETH','nigeria':'NGA','india':'IND','thailand':'THA','vietnam':'VIE','philippines':'PHI','indonesia':'IDN','malaysia':'MAS','singapore':'SGP','china tpe':'TPE' };
+/* continent of a nation name, used only to place a nation we did not already know in the
+   right confederation for the international calendar */
+const CONFED_OF = {
+  UEFA: ['england','france','spain','germany','italy','portugal','netherlands','belgium','croatia','austria','switzerland','poland','denmark','sweden','norway','finland','denmark','iceland','ireland','wales','scotland','ukraine','russia','serbia','greece','romania','hungary','czech','slovakia','slovenia','albania','bosnia','kosovo','montenegro','macedonia','georgia','armenia','azerbaijan','kazakhstan','estonia','latvia','lithuania','belarus','moldova','luxembourg','liechtenstein','andorra','malta','san marino','turkey','israel','cyprus','faroe','gibraltar'],
+  CONMEBOL: ['brazil','argentina','uruguay','chile','colombia','ecuador','peru','paraguay','venezuela','bolivia'],
+  CAF: ['senegal','morocco','algeria','tunisia','egypt','nigeria','ghana','cameroon','cote d ivoire','ivory coast','mali','burkina','guinea','congo','gabon','benin','cape verde','verde','zambia','south africa','kenya','angola','mozambique','niger','togo','sierra','liberia','gambia','uganda','zimbabwe','tanzania','ethiopia','democratic republic','mauritania','djibouti','eritrea','somalia','sudan','rwanda','burundi','lesotho','eswatini','botswana','namibia','malawi','comoros','chad','equatorial','saotome','principe','reunion','zanzibar'],
+  AFC: ['japan','south korea','korea','china','australia','iran','saudi','qatar','iraq','uzbekistan','jordan','syria','lebanon','palestine','bahrain','oman','yemen','kuwait','india','thailand','vietnam','indonesia','malaysia','singapore','philippines','myanmar','cambodia','laos','nepal','bhutan','sri lanka','bangladesh','turkmenistan','tajikistan','kyrgyzstan','afghanistan','palestine'],
+  CONCACAF: ['mexico','united states','usa','canada','costa rica','honduras','panama','jamaica','haiti','trinidad','curacao','cura\u00e7ao','el salvador','guatemala','belize','nicaragua','cuba','bermuda','barbados','grenada','antigua','saint kitts','saint lucia','saint vincent','dominica','dominican','aruba','bahamas','turks','cayman','puerto rico','virgin'],
+  OFC: ['new zealand','fiji','papua','solomon','vanuatu','samoa','tonga','caledonia','guam']
+};
+function confedOf(name) {
+  const n = deaccent(name).toLowerCase();
+  for (const k in CONFED_OF) if (CONFED_OF[k].some(x => n.includes(x))) return k;
+  return 'UEFA';
+}
+const COUNTRY = { england:'ENG', scotland:'SCO', wales:'WAL', ireland:'IRL', 'northern ireland':'NIR', france:'FRA', germany:'GER',
+  spain:'ESP', italy:'ITA', portugal:'POR', netherlands:'NED', belgium:'BEL', switzerland:'SUI', austria:'AUT', sweden:'SWE',
+  norway:'NOR', denmark:'DEN', finland:'FIN', iceland:'ISL', poland:'POL', czechia:'CZE', 'czech republic':'CZE', ukraine:'UKR',
+  romania:'ROU', serbia:'SRB', croatia:'CRO', 'bosnia and herzegovina':'BIH', bosnia:'BIH', hungary:'HUN', greece:'GRE', russia:'RUS',
+  turkey:'TUR', holland:'NED', 'republic of ireland':'IRL', 'korea republic':'KOR', 'iran':'IRN', slovenia:'SLO', slovakia:'SVK', albania:'ALB', georgia:'GEO', 'united states':'USA', usa:'USA', canada:'CAN', mexico:'MEX',
+  'costa rica':'CRC', jamaica:'JAM', panama:'PAN', haiti:'HAI', brazil:'BRA', argentina:'ARG', uruguay:'URU', chile:'CHI', colombia:'COL',
+  venezuela:'VEN', ecuador:'ECU', peru:'PER', paraguay:'PAR', bolivia:'BOL', japan:'JPN', china:'CHN', 'south korea':'KOR', 'north korea':'PRK',
+  australia:'AUS', 'new zealand':'NZL', ghana:'GHA', nigeria:'NGA', cameroon:'CMR', senegal:'SEN', morocco:'MAR', 'south africa':'RSA',
+  zambia:'ZAM', 'ivory coast':'CIV', mali:'MLI', algeria:'ALG', tunisia:'TUN', egypt:'EGY', kenya:'KEN', ethiopia:'ETH', india:'IND',
+  thailand:'THA', vietnam:'VIE', philippines:'PHI', indonesia:'IDN', nigeria:'NGA', 'republic of ireland':'IRL', serbia:'SRB' };
 function natOf(n) {
-  const s = strip(n).toLowerCase().trim().replace(/\.$/, '');
+  const s = deaccent(n).toLowerCase().trim().replace(/\.$/, '');
   if (/^[a-z]{3}$/.test(s)) return s.toUpperCase();
   if (COUNTRY[s]) return COUNTRY[s];
   const key = Object.keys(COUNTRY).find(k => s === k || s.includes(k) || k.includes(s));
   return key ? COUNTRY[key] : null;
 }
-function num(v, d) { const n = parseInt(String(v).replace(/[^\d]/g, ''), 10); return isFinite(n) ? n : d; }
-/* names arrive in every style a dump can offer — "MBAPPE", "kylian mbappe", "Putellas i Tujon" */
-const LOWER = /^(de|del|la|le|van|von|di|da|dos|das|der|den|ter|ten|bin|ibn|al|el|the|of|and)$/i;
+const num = (v, d) => { const n = parseInt(String(v == null ? '' : v).replace(/[^\d-]/g, ''), 10); return isFinite(n) ? n : d; };
+const LOWER = /^(de|del|la|le|van|von|di|da|dos|das|der|den|ter|ten|bin|ibn|al|el|the|of)$/i;
+/* the export fills common_name for only a third of its rows, and when it does it is often a
+   single word ("Gabriel"), so: two-word common name wins, otherwise first + last. */
+function displayName(r) {
+  const cn = String(idx.name >= 0 ? r[idx.name] || '' : '').replace(/\s+/g, ' ').trim();
+  const fn = String(idx.first >= 0 ? r[idx.first] || '' : '').trim();
+  const ln = String(idx.last >= 0 ? r[idx.last] || '' : '').trim().split(' ')[0] || '';
+  if (cn && /\s/.test(cn)) return prettyName(cn);
+  if (cn && fn && ln) return prettyName(fn + ' ' + ln);
+  if (fn && ln) return prettyName(fn + ' ' + ln);
+  return prettyName(cn || fn || ln);
+}
 function prettyName(raw) {
-  let n = String(raw || '').replace(/\s+/g, ' ').replace(/[,"]+$/, '').trim();   // accents stay: they are part of the name
+  let n = String(raw || '').replace(/\s+/g, ' ').replace(/[,"]+$/, '').trim();
   if (!n) return n;
-  if (/^[^,]{2,}\s*,\s*[^,]+$/.test(n)) {                       // FBref convention: "Putellas, Alexia"
-    const [last, first] = n.split(',').map(x => x.trim());
-    n = (first + ' ' + last).replace(/\s+$/, '');
-  }
+  if (/^[^,]{2,}\s*,\s*[^,]+$/.test(n)) { const [last, first] = n.split(',').map(x => x.trim()); n = first + ' ' + last; }
+  const words = n.split(' ');
   const shouty = n === n.toUpperCase() && /[A-Z]/.test(n);
   const quiet = n === n.toLowerCase() && /[a-z]/.test(n);
-  const caps = w => w.length > 2 && w === w.toUpperCase() && /[A-Z]/.test(w);          // "Kylian MBAPPE"
-  if (caps(n.split(' ').slice(1).join(' ')) || shouty || quiet) n = n.toLowerCase().split(' ').map((w, i) => {
+  const caps = w => w.length > 2 && w === w.toUpperCase() && /[A-Z]/.test(w) && !/^[A-Z]{2,4}$/.test(w);
+  if (shouty || quiet || words.some(caps)) n = words.map((w, i) => {
     if (!w) return w;
-    if (i && LOWER.test(w)) return w.toLowerCase();
-    if (/^[mcok]?[aeiou]?\.$/.test(w)) return w;
-    if (/^(ii|iii|iv|jr|sr|o\'?[a-z]+)$/.test(w)) return i ? w : w[0].toUpperCase() + w.slice(1);
-    return w[0].toUpperCase() + w.slice(1);
+    if (i && LOWER.test(w.toLowerCase())) return w.toLowerCase();
+    if (/^[A-Z]{2,5}$/.test(w) && !/[aeiou]/i.test(w)) return w;                     // AFC, FC, SC …
+    return (w[0] || '').toUpperCase() + w.slice(1).toLowerCase();
   }).join(' ');
-  n = n.replace(/([a-zÀ-ÿ])('’)[A-Z]/g, (m, a, b, c) => a + b + c);   // O'Neil, D'Argento keep their cap
   return n.replace(/\s{2,}/g, ' ');
 }
+/* a country outside the 70 in db.js still deserves a row: transliterate a code and move on */
+const guessCode = n => { const s2 = deaccent(n || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3); return s2.length === 3 ? s2 : null; };
+const SNAPSHOT = new Date('2026-07-01T00:00:00Z');            // db.js meta.snapshot: age is measured here
+function ageOf(r) {
+  if (idx.age >= 0) { const a = num(r[idx.age], 0); if (a >= 14 && a <= 45) return a; }
+  if (idx.birth >= 0) { const d = new Date(String(r[idx.birth] || '').trim());
+    if (!isNaN(d)) return Math.floor((SNAPSHOT - d) / (365.25 * 864e5)); }
+  return 0;
+}
 
-/* ---------- known clubs ---------- */
+/* ---------------------------------------------------------------- the universe we map into */
 const dbPath = path.join(__dirname, '..', 'db.js');
 const DB = new Function('window', fs.readFileSync(dbPath, 'utf8') + '\nreturn window.FC27_DB;')({});
-const norm = s => strip(s).toLowerCase().replace(/\b(fc|cf|afc|ac|sc|1\.|club|cd|ud|sd|sk|fk|bk|if|aif|kffl|ff|srfk|w)\b/g, '').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
-const KNOWN = [];
+const DROP = /\b(fc|cf|cfc|afc|acc|ac|ca|cd|ud|sd|sc|sk|fk|bk|if|rcd|rc|cp|ssd|ssc|as|ap|ufc|afc|1\.|club|real? ?club)\b/g;
+const SYN  = { united:'utd', utd:'utd', 'nott\u2019m':'nottingham', 'nott\u0027m':'nottingham', nottm:'nottingham', atletico:'atletico', 'athletic club':'athletic' };
+function toks(s2) {
+  return deaccent(s2).toLowerCase().replace(DROP, ' ').replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+    .filter(Boolean).map(w => SYN[w] || w);
+}
+const norm = s2 => toks(s2).join(' ');
+const B_TEAM = /(^| )(b|b\b|ii|iii|aficionado|fortuna|castilla|primevera|reserves|u19|u21|u23| youth|women|wfc)$/i;
+/* the file's league names (sponsor-named) for each division the universe holds */
+const LEAGUE_OF = {
+  'ENG0': ['premier league'], 'ENG1': ['efl championship'],
+  'ESP0': ['laliga ea sports', 'la liga', 'primera division'], 'ESP1': ['laliga hypermotion', 'laliga 2'],
+  'GER0': ['bundesliga'], 'GER1': ['bundesliga 2', '2. bundesliga'],
+  'ITA0': ['serie a enilive', 'serie a'], 'ITA1': ['serie bkt', 'serie b'],
+  'FRA0': ["ligue 1 mcdonald's", 'ligue 1'], 'FRA1': ['ligue 2 bkt', 'ligue 2']
+};
+/* the country each file-league belongs to, so a club that moved division between the file's
+   season and ours is still found — but never in another country */
+const COUNTRY_LEAGUES = {
+  ENG: ['premier league', 'efl championship', 'efl league one', 'efl league two', 'english carabao cup'],
+  ESP: ['laliga ea sports', 'laliga hypermotion', 'primera rfef'],
+  GER: ['bundesliga', 'bundesliga 2', '3. liga'],
+  ITA: ['serie a enilive', 'serie bkt', 'serie c'],
+  FRA: ["ligue 1 mcdonald's", 'ligue 2 bkt', 'national']
+};
+/* clubs the export renames or shortens: our code -> the name in the file */
+const CLUB_ALIAS = {
+  TOT: 'spurs', MUN: 'man utd', NFO: "nott'm forest", WOL: 'wolves', BHA: 'brighton', NEW: 'newcastle utd',
+  WHU: 'west ham', WBA: 'west brom', QPR: 'qpr', CHA: 'charlton ath', ATM: 'atlético de madrid',
+  CEL: 'celta', ESP: 'rcd espanyol', MAL: 'rcd mallorca', ALA: 'd. alavés', OVI: 'r. oviedo',
+  RAC: 'r. racing club', SPG: 'r. sporting', DEP: 'rc deportivo', ZAR: 'real zaragoza', ALB: 'albacete bp',
+  VLL: 'r. Valladolid cf', B04: 'leverkusen', SGE: 'frankfurt', BMG: "m'gladbach", FCH: 'heidenheim',
+  FCK: 'kaiserslautern', SCP: 'sc paderborn 07', SGF: 'fürth', EBS: 'braunschweig', F95: 'düsseldorf',
+  NAP: 'ssc napoli', VER: 'hellas verona', INT: 'lombardia fc', MIL: 'milano fc', ATA: 'bergamo calcio',
+  LAZ: 'latium', PSG: 'paris sg', OL: 'ol', OM: 'om', LIL: 'losc lille', RCL: 'rc lens', STR: 'strasbourg',
+  MHS: 'montpellier', NAN: 'fc nantes', SRFC: 'stade rennais fc', HAC: 'havre ac', TRO: 'estac troyes',
+  MHSC: 'montpellier', ASC: 'amiens', SCB: 'bastia', SMC: 'caen', LAV: 'laval', TER: 'ternana',
+  COS: 'cosenza', REG: 'reggiana', SPE: 'spezia', BRE2: 'brescia', BAR2: 'bari', CAD: 'cádiz cf',
+  MIR: 'mirandés', PON: 'ponferradina', CAR: 'cartagena', HUE: 'huesca', FER: 'ferrol', ULM: 'ulm',
+  BAR: 'fc barcelona', RMA: 'real madrid cf',
+  SHU: 'sheffield utd', NOR: 'norwich', PRE: 'preston', COV: 'coventry', HUL: 'hull', STO: 'stoke city',
+  WLY: 'wolverhampton', MUN2: 'man utd'
+};
+const MY_CLUBS = [];
 DB.leagues.forEach(lg => lg.divs.forEach((d, di) => d.clubs.forEach(r => {
-  const [name, code] = r.split('|');
-  KNOWN.push({ name, code, lg: lg.code, div: di, key: norm(name) });
+  const [name, code, str] = r.split('|');
+  MY_CLUBS.push({ name, code, str: +str, key: norm(name), lg: lg.code, div: di, lk: lg.code + di,
+    leagues: (LEAGUE_OF[lg.code + di] || []).concat(COUNTRY_LEAGUES[lg.code] || []) });
 })));
-function matchClub(name) {
-  if (!name) return null;
-  const k = norm(name);
-  const exact = KNOWN.filter(c => c.key === k); if (exact.length) return exact[0];
-  const part = KNOWN.filter(c => c.key.includes(k) || k.includes(c.key));
-  return part.length === 1 ? part[0] : null;
-}
+const MY_BY_KEY = new Map();
+for (const c of MY_CLUBS) { if (!c.key) continue; if (!MY_BY_KEY.has(c.key)) MY_BY_KEY.set(c.key, []); MY_BY_KEY.get(c.key).push(c); }
 
-/* ---------- build ---------- */
-const seen = new Set(), out = [], byClub = new Map();
+/* the file's clubs, bucketed by league */
+const FILE = new Map();   // "league||club" -> { league, club, key, n, sum, best }
 for (const r of body) {
-  const name = strip(r[idx.name]).replace(/\s+/g, ' ').trim();
-  if (!name || name.length < 2) continue;
-  const ovr = num(r[idx.ovr], 0); if (!ovr) continue;
-  const pos = posOf(idx.pos >= 0 ? r[idx.pos] : 'CM');
-  const age = num(idx.age >= 0 ? r[idx.age] : 0, pos === 'GK' ? 29 : 24);
-  const nat = natOf(idx.nat >= 0 ? r[idx.nat] : '');
-  const clubRaw = idx.club >= 0 ? strip(r[idx.club]).trim() : '';
-  const league = idx.league >= 0 ? strip(r[idx.league]).trim() : '';
-  const key = (name + '|' + clubRaw).toLowerCase();
-  if (seen.has(key)) continue; seen.add(key);
-  const id = prettyName(name);
-  out.push({ name: id, nat: nat || '???', pos, ovr: Math.max(40, Math.min(99, ovr)), age: Math.max(15, Math.min(41, age)),
-    clubRaw, league, club: matchClub(clubRaw) });
+  const club = deaccent(r[idx.club] || '').trim(); if (!club) continue;
+  const league = deaccent(r[idx.league] || '').trim().toLowerCase();
+  const k = (league || '?') + '||' + club;
+  let c = FILE.get(k); if (!c) { c = { league, club, key: norm(club), n: 0, sum: 0, best: 0 }; FILE.set(k, c); }
+  c.n++; c.sum += num(r[idx.ovr], 60); c.best = Math.max(c.best, num(r[idx.ovr], 0));
 }
-const unknown = out.filter(p => !p.club), known = out.filter(p => p.club);
-const groups = new Map();
-for (const p of unknown) { const g = p.league || '(no league column)'; if (!groups.has(g)) groups.set(g, new Map());
-  const cs = groups.get(g); const c = p.clubRaw || '(no club)';
-  const cur = cs.get(c) || { club: c, n: 0, best: 0, sum: 0, nats: new Set() };
-  cur.n++; cur.sum += p.ovr; cur.best = Math.max(cur.best, p.ovr); cur.nats.add(p.nat); cs.set(c, cur); }
-const dupes = out.length - new Set(out.map(p => (p.name + '|' + p.clubRaw).toLowerCase())).size;
-const noNat = out.filter(p => p.nat === '???').reduce((a, p) => a.set(p.clubRaw || '?', (a.get(p.clubRaw || '?') || 0) + 1), new Map());
+const BY_LEAGUE = new Map(), BY_KEY = new Map();
+for (const c of FILE.values()) {
+  if (!BY_LEAGUE.has(c.league)) BY_LEAGUE.set(c.league, []);
+  BY_LEAGUE.get(c.league).push(c);
+  if (!c.key) continue;
+  if (!BY_KEY.has(c.key)) BY_KEY.set(c.key, []);
+  BY_KEY.get(c.key).push(c);
+}
+/* a file club means mine when the shorter token list sits inside the longer one ("norwich city" ⊃
+   "norwich"), which is how a spreadsheet abbreviates; B teams and women's sides never qualify */
+function fits(mineKey, fileKey) {
+  if (!fileKey || fileKey === mineKey) return fileKey === mineKey;
+  const a = mineKey.split(' '), b = fileKey.split(' ');
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  if (!short.length) return false;
+  if (short.length === 1 && short[0].length < 5) return false;
+  return short.every(t => long.includes(t));
+}
+/* pick the file club that means this one of mine: alias > same-division league > country leagues */
+function pickClub(mine) {
+  const pool = () => { const set = new Set();
+    for (const L of mine.leagues) for (const c of (BY_LEAGUE.get(L) || [])) set.add(c);
+    for (const c of (BY_KEY.get(mine.key) || [])) set.add(c);
+    return [...set].filter(c => !B_TEAM.test(c.club)); };
+  const cand = pool();
+  const al = CLUB_ALIAS[mine.code];
+  if (al) { const n = norm(al), low = deaccent(al).toLowerCase();
+    const hit = cand.filter(c => (n && c.key === n) || c.club.toLowerCase() === low);
+    const any = hit.length ? hit : [...FILE.values()].filter(c => (n && c.key === n) || c.club.toLowerCase() === low).filter(c => !B_TEAM.test(c.club));
+    if (any.length) return any.sort((a, b) => (mine.leagues.includes(b.league) ? 1 : 0) - (mine.leagues.includes(a.league) ? 1 : 0) || b.best - a.best)[0]; }
+  /* a name match outside this country's leagues is how Barcelona once landed on Barcelona SC
+     (Guayaquil), so every candidate after the alias has to come from a league of ours */
+  const here = c => mine.leagues.includes(c.league);
+  const exact = cand.filter(c => c.key === mine.key && here(c));
+  if (exact.length) return exact.sort((a, b) => (mine.leagues.indexOf(a.league)) - (mine.leagues.indexOf(b.league)) || b.n - a.n)[0];
+  const sub = cand.filter(c => here(c) && fits(mine.key, c.key));
+  if (sub.length) { sub.sort((a, b) => a.key.length - b.key.length || b.best - a.best); return sub[0]; }
+  return null;
+}
+const PAIR = new Map();   // file "league||club" -> my club
+const report = [];
+for (const mine of MY_CLUBS) {
+  const f = pickClub(mine);
+  if (f) { const k = (f.league || '?') + '||' + f.club; if (!PAIR.has(k)) PAIR.set(k, mine);
+    const avg = Math.round(f.sum / f.n), sus = Math.abs(avg - mine.str) > 12 ? '  ?? ' + mine.str : '';
+    report.push((sus ? '~' : ' ') + mine.lg + ' d' + mine.div + ' ' + mine.code.padEnd(5) + mine.name.padEnd(24) +
+      '→ ' + f.club.padEnd(24) + ' [' + f.league + '] ' + f.n + 'p avg' + avg + sus); }
+  else report.push('! ' + mine.lg + ' d' + mine.div + ' ' + mine.code.padEnd(5) + mine.name.padEnd(26) + '→ NOTHING IN THE FILE');
+}
 
-console.log('file      ' + path.basename(file) + '  ·  ' + (rows.length - 1) + (rows.length - 1 === 1 ? ' row' : ' rows') + '  ·  ' +
-  (idx.gender < 0 ? 'no gender column — every row is eligible' : (dropped === 1 ? 'one women\'s row excluded' : dropped + ' women\'s rows excluded')) +
-  '  ·  this game covers the men\'s divisions only');
-console.log('players   ' + out.length + ' kept (' + known.length + ' map onto existing clubs, ' + unknown.length + ' unknown)' + (dupes ? '  ·  ' + dupes + ' duplicate names folded' : ''));
-const posTally = out.reduce((a, p) => a.set(p.pos, (a.get(p.pos) || 0) + 1), new Map());
-console.log('positions ' + [...posTally.entries()].sort((x, y) => y[1] - x[1]).map(([k, v]) => k + ' ' + v).join('  '));
-const byDiv = out.reduce((a, p) => a.set(p.ovr >= 85 ? '85+' : p.ovr >= 78 ? '78-84' : p.ovr >= 70 ? '70-77' : '<70', (a.get(p.ovr >= 85 ? '85+' : p.ovr >= 78 ? '78-84' : p.ovr >= 70 ? '70-77' : '<70') || 0) + 1), new Map());
-console.log('ratings   ' + [...byDiv.entries()].map(([k, v]) => k + ':' + v).join('  '));
-console.log('unmapped nation codes ' + (noNat.size ? [...noNat.entries()].slice(0, 6).map(([k, v]) => k + '×' + v).join(', ') : 'none'));
-console.log('\nclubs already in the universe that this file can feed:');
-for (const c of [...new Set(known.map(p => p.club.code))].slice(0, 40)) {
-  const list = known.filter(p => p.club.code === c).sort((a, b) => b.ovr - a.ovr);
-  console.log('  ' + c.padEnd(5) + String(list[0].club.name).padEnd(22) + list.length + ' players · best ' + list[0].name + ' ' + list[0].ovr);
+/* ---------------------------------------------------------------- build player rows */
+const WEIGHTS = {
+  ST: { pace:.18, shooting:.30, passing:.10, dribbling:.16, defending:.02, physical:.24 },
+  LW: { pace:.30, shooting:.18, passing:.14, dribbling:.26, defending:.02, physical:.10 },
+  RW: { pace:.30, shooting:.18, passing:.14, dribbling:.26, defending:.02, physical:.10 },
+  CAM:{ pace:.18, shooting:.20, passing:.28, dribbling:.22, defending:.04, physical:.08 },
+  CM: { pace:.14, shooting:.14, passing:.28, dribbling:.18, defending:.14, physical:.12 },
+  CDM:{ pace:.10, shooting:.08, passing:.24, dribbling:.14, defending:.28, physical:.16 },
+  LB: { pace:.24, shooting:.06, passing:.20, dribbling:.16, defending:.22, physical:.12 },
+  RB: { pace:.24, shooting:.06, passing:.20, dribbling:.16, defending:.22, physical:.12 },
+  CB: { pace:.14, shooting:.06, passing:.14, dribbling:.06, defending:.38, physical:.22 },
+  GK: { pace:.05, shooting:.02, passing:.13, dribbling:.05, defending:.60, physical:.15 }
+};
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function myOvr(attrs, pos) {
+  const w = WEIGHTS[pos] || WEIGHTS.CM; let t = 0;
+  for (const k in w) t += (attrs[k] || 60) * w[k];
+  return Math.round(clamp(t, 30, 99));
 }
-if (unknown.length) {
-  console.log('\nunknown clubs, grouped by the league column:');
-  for (const [lg, cs] of groups) console.log('  ' + lg.padEnd(26) + cs.size + ' clubs · ' + [...cs.values()].sort((a, b) => b.n - a.n).slice(0, 4).map(c => c.club + ' (' + c.n + ', best ' + c.best + ')').join(', ') + (cs.size > 4 ? '…' : ''));
+
+let offCount = 0, shiftSum = 0, shiftN = 0;
+const NAT_BEST = new Map();   // every nation in the file, with the best player it fields
+for (const r of body) {
+  const raw = (r[idx.nat] || '').trim(); if (!raw) continue;
+  const code = natOf(raw) || guessCode(raw); if (!code) continue;
+  const o = num(r[idx.ovr], 0); if (!o) continue;
+  const cur = NAT_BEST.get(code);
+  if (!cur || o > cur.best) NAT_BEST.set(code, { best: o, name: raw });
 }
-if (flags.has('--new-leagues')) {
-  const blocks = [];
-  for (const [lgName, cs] of groups) {
-    const clubs = [...cs.values()].sort((a, b) => b.best - a.best).slice(0, 24);
-    if (clubs.length < 6) { console.log('\nskipping "' + lgName + '": only ' + clubs.length + ' clubs'); continue; }
-    const code = lgName.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'WLD';
-    const rowsOut = clubs.map(c => {
-      const short = (c.club.match(/\b[A-Z]{2,4}\b/) || [])[0] || c.club.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
-      const str = Math.max(50, Math.min(92, Math.round(c.best * .78 + (c.sum / c.n) * .22)));
-      return "            '" + c.club.replace(/'/g, '') + "|" + short + "|" + str + "|" + (18000 + (c.n % 9) * 2400) + "|" + (0.2 + str / 200).toFixed(1) + "M'";
-    });
-    blocks.push("    { code:'" + code + "', name:'" + lgName.replace(/'/g, '') + "', confed:'UEFA', tv:.42,\n" +
-      "      divs: [\n        { code:'" + code + "1', name:'" + lgName.replace(/'/g, '') + "', rep:.45, size:" + clubs.length + ", cup:'Domestic Cup',\n          clubs: [\n" + rowsOut.join(',\n') + "\n          ] },\n" +
-      "        { code:'" + code + "2', name:'" + lgName.replace(/'/g, '') + " II', rep:.32, size:" + clubs.length + ", cup:'Second Cup', clubs: [] }\n      ],\n" +
-      "      promotion: { auto: 0, playoff: null },\n      relegation: { auto: 0, playoff: null } }");
+const LADDER = [[88, 86], [85, 80], [82, 75], [79, 70], [76, 65], [73, 60], [70, 55], [0, 50]];
+function natStrength(best) { for (const [t, v] of LADDER) if (best >= t) return v; return 50; }
+const byMine = new Map();
+for (const r of body) {
+  const league = deaccent(r[idx.league] || '').trim().toLowerCase();
+  const fk = (league || '?') + '||' + deaccent(r[idx.club] || '').trim();
+  const mine = PAIR.get(fk); if (!mine) continue;
+  const ovr = num(r[idx.ovr], 0); if (!ovr) continue;
+  const pos = posOf(r[idx.pos], idx.alt >= 0 ? r[idx.alt] : '');
+  if (pos === 'GK') continue;                                  // no goalkeepers to play as yet
+  const nat = natOf(idx.nat >= 0 ? r[idx.nat] : '') || guessCode(r[idx.nat]);
+  const attrs = { pace: num(r[idx.pace], 0), shooting: num(r[idx.shooting], 0), passing: num(r[idx.passing], 0),
+                  dribbling: num(r[idx.dribbling], 0), defending: num(r[idx.defending], 0), physical: num(r[idx.physical], 0) };
+  const have = attrs.pace && attrs.shooting && attrs.passing && attrs.dribbling && attrs.defending && attrs.physical;
+  let A = null;
+  if (have) {
+    /* keep the file's *profile* — the gaps between pace and defending are the player — but move the
+       whole set onto the level our OVR formula reads as the same overall, so a takeover never jumps */
+    const raw = { pace: clamp(attrs.pace, 20, 99), shooting: clamp(attrs.shooting, 20, 99), passing: clamp(attrs.passing, 20, 99),
+                  dribbling: clamp(attrs.dribbling, 20, 99), defending: clamp(attrs.defending, 20, 99), physical: clamp(attrs.physical, 20, 99) };
+    const shift = clamp(ovr, 40, 97) - myOvr(raw, pos);
+    shiftSum += shift; shiftN++;
+    A = {}; for (const k in raw) A[k] = clamp(raw[k] + shift, 20, 99);
+    if (Math.abs(myOvr(A, pos) - ovr) > 1) offCount++;
   }
-  const emit = opt('emit', 'db.new-leagues.js');
-  fs.writeFileSync(path.isAbsolute(emit) ? emit : path.join(__dirname, '..', emit),
-    '/* generated by tools/import-players.js — paste these objects into the leagues array in db.js\n   (a division with clubs: [] is filled by the engine from its own defaults; delete it if you\n   do not want a second tier, and set promotion/relegation to the real rules) */\n[\n' + blocks.join(',\n') + '\n]\n');
-  console.log('\nwrote ' + blocks.length + ' candidate league blocks → ' + emit);
+  const o = clamp(ovr, 40, 99);   // the file's overall: every value model in the game is calibrated on it
+
+  const age = ageOf(r) || (o >= 85 ? 27 : 24);
+  const nm = displayName(r);
+  const rec = { name: nm, nat: nat || '???', pos, ovr: o, fileOvr: ovr, age: clamp(age || 24, 16, 40), attrs: A, mine };
+  if (!byMine.has(mine.code)) byMine.set(mine.code, []);
+  byMine.get(mine.code).push(rec);
 }
+const kept = [];
+for (const list of byMine.values()) {
+  list.sort((a, b) => b.ovr - a.ovr);
+  const seen = new Set();
+  for (const p of list) { const k = p.name.toLowerCase(); if (seen.has(k)) continue; seen.add(k); kept.push(p); if (seen.size >= SQUAD) break; }
+}
+kept.sort((a, b) => b.ovr - a.ovr);
+/* one name has to mean one player: the roster view, the search box and a takeover all key off it,
+   so a second Sergio Arribas at another club is dropped rather than made unique by a suffix */
+{ const seen = new Set(); const out = []; let dup = 0;
+  for (const p of kept) { const k = p.name.toLowerCase(); if (seen.has(k)) { dup++; continue; } seen.add(k); out.push(p); }
+  kept.length = 0; kept.push(...out); if (dup) console.log('dropped ' + dup + ' rows whose name another, better-paid player already owns'); }
+function esc(x) {
+  return String(x).split('\\').join('\\\\').split("'").join("\\'");   // names like O\'Reilly must not be able to close the generated string
+}
+const rowText = p => [esc(p.name), p.nat, p.pos, p.ovr, p.age, p.mine.code,
+  p.attrs ? [p.attrs.pace, p.attrs.shooting, p.attrs.passing, p.attrs.dribbling, p.attrs.defending, p.attrs.physical].join(',') : ''].join('|');
+const rowsOut = kept.map(p => "    '" + rowText(p) + "'");
+
+/* ---------------------------------------------------------------- report */
+const matched = report.filter(l => l[0] !== '!').length;
+console.log('file      ' + path.basename(file) + '  ·  ' + (rows.length - 1) + (rows.length - 1 === 1 ? ' row' : ' rows') + '  ·  ' +
+  (excluded ? (excluded === 1 ? 'one women\u2019s row excluded' : excluded + ' women\u2019s rows excluded') : 'no gender split applied') +
+  '  ·  this game covers the men\u2019s divisions only');
+console.log('clubs     ' + matched + '/192 of the universe found in the file');
+console.log('players   ' + kept.length + ' rows (' + byMine.size + ' squads, cap ' + SQUAD + ' outfielders each)' +
+  '  ·  ' + kept.filter(p => p.attrs).length + ' with real attribute values');
+if (shiftN) console.log('ovr       mean-locked onto the file\u2019s overall \u2014 our own position weights alone would have read ' +
+  (-shiftSum / shiftN).toFixed(1) + ' points off, so a takeover never jumps when the game recomputes');
+const knownNat = new Set((DB.nations || []).map(r => String(r).split('|')[0]));
+const NEW_NATS = [...NAT_BEST.entries()].filter(([c]) => !knownNat.has(c))
+  .map(([code, v]) => ({ code, name: prettyName(v.name), str: natStrength(v.best), confed: confedOf(v.name) }))
+  .sort((a, b) => b.str - a.str || a.code.localeCompare(b.code));
+if (NEW_NATS.length) console.log('nations   ' + NEW_NATS.length + ' not in db.js yet, added from the file: ' +
+  NEW_NATS.slice(0, 14).map(n => n.code + ' ' + n.str).join(', ') + (NEW_NATS.length > 14 ? ' …' : ''));
+const nats = kept.filter(p => p.nat === '???');
+if (nats.length) console.log('note      ' + nats.length + ' rows had an unrecognised nationality — they are skipped by --apply');
+const squadSizes = [...byMine.values()].map(l => l.length).sort((a, b) => a - b);
+console.log('squads    min ' + squadSizes[0] + ' · median ' + squadSizes[Math.floor(squadSizes.length / 2)] + ' · max ' + squadSizes[squadSizes.length - 1]);
+console.log('attrs     ' + (offCount ? offCount + ' rows could not be mean-locked inside 1 point of the file overall (clamped at the ceiling)' : 'every row sits within 1 point of its own overall after mean-locking'));
+if (flags.has('--strengths')) {
+  console.log('\nclub strength: my db value vs the average of the imported best eleven');
+  const rowsS = [];
+  for (const mine of MY_CLUBS) {
+    const l = (byMine.get(mine.code) || []).slice(0, 11);
+    if (l.length < 7) continue;
+    const avg = Math.round(l.reduce((a, p) => a + (p.fileOvr || p.ovr), 0) / l.length);
+    rowsS.push([mine.str - avg, mine.code, mine.name, mine.str, avg]);
+  }
+  rowsS.sort((a, b) => Math.abs(b[0]) - Math.abs(a[0]));
+  console.log('  biggest gaps: ' + rowsS.slice(0, 12).map(r => r[1] + ' ' + r[3] + '→' + r[4]).join(', '));
+  const big = rowsS.filter(r => Math.abs(r[0]) > 5).length;
+  console.log('  ' + big + ' of ' + rowsS.length + ' clubs sit more than 5 out. db.js keeps its own strengths unless you change them deliberately.');
+}
+if (opt('report', '')) { fs.writeFileSync(opt('report'), report.join('\n') + '\n'); console.log('\npairing table → ' + opt('report')); }
 if (flags.has('--apply')) {
-  const lines = out.filter(p => p.club && p.nat !== '???').sort((a, b) => b.ovr - a.ovr)
-    .map(p => "    '" + p.name + "|" + p.nat + "|" + p.pos + "|" + p.ovr + "|" + p.age + "|" + p.club.code + "'");
-  const tag = want === 'all' ? 'imported' : want;
-  const body2 = "  players: [ /* " + lines.length + " rows from " + path.basename(file) + " (" + tag + "), " + new Date().toISOString().slice(0, 10) + " */\n" +
-    lines.map((l, i) => l + (i < lines.length - 1 ? ',' : '')).join('\n') + "\n  ],";
+  const good = kept.filter(p => p.nat !== '???');
+  const goodRows = good.map(p => "    '" + rowText(p) + "'");
+  const body2 = "  players: [ /* " + goodRows.length + " rows imported from " + path.basename(file) +
+    " on " + new Date().toISOString().slice(0, 10) + " — men's rows only, " + matched + " of 192 clubs covered */\n" +
+    goodRows.map((l, i) => l + (i < goodRows.length - 1 ? ',' : '')).join('\n') + "\n  ],";
   let src = fs.readFileSync(dbPath, 'utf8');
-  const i = src.search(/\n {2}players: \[/); const j = src.indexOf("\n  ],", i);
+  const i = src.search(/\n {2}players: \[/), j = src.indexOf("\n  ],", i);
   if (i < 0 || j < 0) { console.log('\n--apply aborted: could not find the players array in db.js'); process.exit(2); }
   src = src.slice(0, i + 1) + body2 + src.slice(j + 5);
-  fs.writeFileSync(dbPath, src);
-  console.log('\napplied ' + lines.length + ' player rows to db.js  (old rows replaced — run node tools/validate-db.js)');
-} else console.log('\nnothing written. add --apply to rewrite db.js, or --new-leagues --emit=… for the unknown clubs.');
+  if (NEW_NATS.length) {
+    const ni = src.search(/\n {2}nations: \[/), nj = src.indexOf('\n  ],', ni);
+    if (ni < 0 || nj < 0) { console.log('\n--apply aborted: could not find the nations array in db.js'); process.exit(2); }
+    const body3 = src.slice(ni + 1, nj).replace(/,\s*$/, '');
+    const add = NEW_NATS.map(n => "    '" + n.code + "|" + esc(n.name) + "|" + n.str + "|" + n.confed + "'");
+    src = src.slice(0, ni + 1) + body3 + ',\n' + add.join(',\n') + src.slice(nj);
+  }
+  fs.writeFileSync(dbPath, src);   // players first, then nations — one write, after both edits
+  console.log('\napplied ' + goodRows.length + ' player rows' + (NEW_NATS.length ? ' and ' + NEW_NATS.length + ' nations' : '') + ' to db.js (' + Math.round(src.length / 1024) + ' KB) — run node tools/validate-db.js');
+} else console.log('\nnothing written. --apply rewrites the players array in db.js; --report=map.txt shows every club pairing.');

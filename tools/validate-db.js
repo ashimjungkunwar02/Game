@@ -101,7 +101,11 @@ const seenNames = new Set();
 let playable = 0;
 (DB.players || []).forEach((row, i) => {
   const p = typeof row === 'string' ? row.split('|') : [row.name, row.nat, row.pos, row.ovr, row.age, row.club];
-  if (p.length !== 6) return err('players[' + i + ']', 'want "Name|NAT|POS|OVR|AGE|clubSHORT": ' + JSON.stringify(row));
+  if (p.length !== 6 && p.length !== 7) return err('players[' + i + ']', 'want "Name|NAT|POS|OVR|AGE|clubSHORT[|pace,shooting,passing,dribbling,defending,physical]": ' + JSON.stringify(row));
+  if (p.length === 7) {
+    const a = String(p[6]).split(',');
+    if (a.length !== 6 || a.some(x => !(+x >= 15 && +x <= 99))) err('players[' + i + ']', 'attribute tail must be six numbers 15-99, got "' + p[6] + '"');
+  }
   const [name, nat, pos, ovr, age, club] = p;
   if (!natCodes.has(nat)) err('players[' + i + ']', 'unknown nation code ' + nat);
   if (!POS.includes(pos)) err('players[' + i + ']', 'position ' + pos + ' has no template in forms');

@@ -221,7 +221,19 @@ for (const pos of ['ST', 'LW', 'RW', 'CAM', 'CM', 'CB']) for (const club of CLUB
 console.log(bad ? bad + ' FAILING CONFIGS' : 'SWEEP CLEAN · ' + (6 * CLUBS_S.length) + ' careers, ' + (6 * CLUBS_S.length * 7 * 46) + ' weeks simulated');
 console.log('calendar wobbles recovered without a break: ' + wob + ' across ' + (6 * CLUBS_S.length) + ' careers');
 const raw = JSON.stringify(S); const o = JSON.parse(raw);
-console.log('SAVE ' + (raw.length > 1000 && o.name === S.name ? 'round-trips · ' + Math.round(raw.length / 1024) + 'kb' : 'FAIL'));
+let stored = '';
+try { save(); stored = (globalThis.localStorage && localStorage.getItem(SAVE_KEY)) || ''; } catch (e) {}
+const kb = Math.round(((stored.length || raw.length)) / 1024);
+console.log('SAVE ' + (raw.length > 1000 && o.name === S.name
+  ? (kb < 220 ? 'round-trips · ' + kb + 'kb' : 'TOO BIG · ' + kb + 'kb') : 'FAIL') +
+  (stored ? ' (state alone is ' + Math.round(raw.length / 1024) + 'kb — the pool ships as a delta)' : ''));
+try { const back = load(); back.pool.forEach((p,i) => { p._k = p.name + '|' + p.club; }); S.pool.forEach((p,i) => { p._k = p.name + '|' + p.club; });
+const sameKeys = back.pool.length === S.pool.length && back.pool.every((p,i) => p._k === S.pool[i]._k && p.ovr === S.pool[i].ovr && p.g === S.pool[i].g);
+back.pool.forEach(p => delete p._k); S.pool.forEach(p => delete p._k);
+  console.log('POOL ' + (sameKeys
+    ? 'rehydrates from db.js + the delta · ' + back.pool.length + ' rows, identical order, ratings and tallies'
+    : 'MISMATCH · ' + (back && back.pool ? back.pool.length : 'none') + ' vs ' + S.pool.length));
+} catch (e) { console.log('POOL ' + e.message); }
 `;
 
 try { new Function('"use strict";' + scripts + ';globalThis.__G={};' + CAREER)(); }
