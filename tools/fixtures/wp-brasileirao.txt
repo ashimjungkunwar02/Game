@@ -1,0 +1,40 @@
+{{short description|2026 football season in Brazil}}
+'''2026 Campeonato Brasileiro Série A''' (officially the '''Brasileirão Betano 2026''' for
+sponsorship reasons) is the 70th season of the Campeonato Brasileiro Série A.
+
+==Teams==
+; Stadium and locations
+{| class="wikitable" style="font-size: 95%;"
+|-
+! colspan=2 | Team !! Location !! Manager !! Stadium !! Capacity
+|-
+| {{flag|Rio de Janeiro}}<br>'''[[Clube de Regatas do Flamengo|Flamengo]]'''
+| {{nowrap|{{flagicon|BRA}} [[Rio de Janeiro]]}}
+| {{flagicon|URU}} [[Jorge Sampaoli]]<ref name=mp>{{cite web|title=O clube|url=https://example.com|access-date=1 January 2026}}</ref>
+| [[Maracanã Stadium|Maracanã]]
+| {{sort|78231|'''78,231'''}}
+|-
+| {{flag|São Paulo}} '''[[Sociedade Esportiva Palmeiras|Palmeiras]]''' || {{nowrap|[[São Paulo]]}} || {{flagicon|POR}} [[Abel Ferreira]] || {{#if:yes|[[Allianz Parque]]|Estádio}} || 43,713
+|-
+| {{flag|São Paulo}} '''[[Sport Club Corinthians Paulista|Corinthians]]''' || {{nowrap|[[São Paulo]]}} || {{flagicon|BRA}} [[Ramón Díaz]] || [[Neo Química Arena]] || 47,605
+|-
+| {{flag|Minas Gerais}} '''[[Clube Atlético Mineiro|Atlético Mineiro]]''' || {{nowrap|[[Belo Horizonte]]}} || {{flagicon|ARG}} [[Gabriel Milito]] || [[Arena MRV]] || 44,854
+|-
+| {{flag|Rio Grande do Sul}} '''{{lang|pt|Grêmio}}''' || {{nowrap|[[Porto Alegre]]}} || {{flagicon|BRA}} [[Renato Gaúcho]] || [[Arena do Grêmio]] || 55,662
+|}
+<!-- a navbox that must be ignored -->
+{| class="navbox"
+|-
+| [[Palmeiras]] || stuff
+|}
+
+==League table==
+{{#invoke:Sports table|main|style=WDL
+|update=matches played 24 May 2026
+|win_FLAm=26|draw_FLAm=8|loss_FLAm=4|gf_FLAm=78|ga_FLAm=31|team_FLAm=[[Flamengo]]
+|win_PAL=24|draw_PAL=10|loss_PAL=4|team_PAL=[[Palmeiras]]
+|win_COR=21|draw_COR=9|loss_COR=8|team_COR=[[Corinthians]]
+|win_CAM=20|draw_CAM=7|loss_CAM=11|team_CAM=[[Atlético Mineiro]]
+|win_GRE=17|draw_GRE=9|loss_GRE=12|team_GRE=[[Grêmio]]
+}}
+[[Category:2026 in Brazilian football]]

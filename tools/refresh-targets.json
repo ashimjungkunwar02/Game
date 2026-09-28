@@ -1,0 +1,31 @@
+{
+  "_note": [
+    "What .github/workflows/refresh-packs.yml rebuilds after each transfer window, and what a local run does",
+    "with no arguments. One entry per generated pack.",
+    "",
+    "  search     the query tools/refresh.js gives Wikipedia's list=search; the resolver prints what it picked,",
+    "             because season-article titles move and get renamed.",
+    "  out        the pack file to write. Everything here is a snapshot of an article on the run date;",
+    "             the pack's own note carries the article title, the CC BY-SA licence and the history link.",
+    "  minClubs   a floor on how many clubs the parse found. A top flight is 16-20 clubs; if the parse",
+    "             returns fewer, Wikipedia changed its table shape and the pack is wrong, not small.",
+    "             The job fails instead of committing a truncated league. Set 0 for a deliberately tiny one.",
+    "",
+    "Why only Wikipedia here: a pack built by CI is committed to a public repo, which is redistribution, and",
+    "the football APIs with a free tier (football-data.org, API-Football) license their data for *your* app,",
+    "not for republishing their database. Facts are not copyrightable, but the EU sui generis database right",
+    "covers the investment in the collection regardless — so a licensed provider's whole squad list committed",
+    "to a public repo is exactly the thing its terms forbid. Wikipedia (CC BY-SA, attribute it) and",
+    "openfootball (public domain) may be redistributed. Keys belong in the player's own localStorage, and a",
+    "keyed provider should feed an overlay on their device, never this file."
+  ],
+  "targets": [
+    {
+      "id": "brasil",
+      "search": "2026 Campeonato Brasileiro Série A",
+      "out": "packs/live-brasil.js",
+      "minClubs": 16,
+      "label": "Brasileirão Série A"
+    }
+  ]
+}
