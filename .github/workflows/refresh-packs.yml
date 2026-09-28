@@ -23,6 +23,17 @@ on:
   schedule:
     - cron: '20 4 4 9 *' # 4 September, a few days after the European summer window shuts
     - cron: '20 4 4 2 *' # 4 February, a few days after the winter window shuts
+  # GitHub registers schedules and the manual button only from the DEFAULT branch, so on a working branch
+  # this job would be dead weight you cannot even smoke-test. Re-running on a change to the tooling itself
+  # costs one short job and means a parser or target edit is proven against the live article immediately.
+  # Paths are deliberately not `**`: refreshing must never fire on a gameplay commit, and a pack commit
+  # carries [skip ci] so this cannot loop.
+  push:
+    paths:
+      - '.github/workflows/refresh-packs.yml'
+      - 'tools/refresh.js'
+      - 'tools/refresh-run.js'
+      - 'tools/refresh-targets.json'
   workflow_dispatch:
     inputs:
       targets:
