@@ -245,7 +245,9 @@ const CLUBS_S = ['Sheffield United', 'Real Oviedo', 'FC Schalke 04', 'FC Metz', 
    season, a 30-club league must schedule 58 matchdays without the calendar losing the plot, and the
    weakest country in the file must not make a 54-rated club look like a giant-killer */
 const LADDER_S = [['Inter Miami CF', 'USA', 0], ['Boca Juniors', 'ARG', 0], ['AFC Wimbledon', 'EFL', 0],
-                  ['Tranmere Rovers', 'EFL', 1], ['MSV Duisburg', 'DE3', 0], ['Punjab FC', 'IND', 0], ['Molde FK', 'NOR', 0]];
+                  ['Tranmere Rovers', 'EFL', 1], ['MSV Duisburg', 'DE3', 0], ['Punjab FC', 'IND', 0], ['Molde FK', 'NOR', 0],
+                  /* a country that exists only as a data pack, built from the uploads in this repo */
+                  ['Flamengo', 'BRA', 0]];
 for (const [club, lg, div] of LADDER_S) {
   const r = sweep(3, { pos: 'ST', club, lg, div, wide: true });
   if (r.errors.length) { console.log('ONE-RUNG ' + club.padEnd(16) + r.errors.slice(0, 2).join(' | ')); bad++; }
