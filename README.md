@@ -1,1 +1,354 @@
-# Game
+# Football Career 27
+
+A mobile-first, text-driven **footballer career** sim. One HTML file, one data file, no build step,
+no backend, no account. You are not the manager and you are not the club: you are the player, and
+everything in the game is something a player can actually influence — minutes, body, money, image,
+contract, country.
+
+```
+open index.html            …or:  python3 -m http.server 8080   →  http://localhost:8080
+```
+
+Everything persists to `localStorage` after every action; save codes export/import as text.
+
+---
+
+## Start
+
+Open `index.html` — that is the whole app. It needs exactly two files in one folder (`index.html`
++ `db.js`) and nothing else: the universe arrives through a plain `<script src="db.js">` tag, so
+there is no `fetch`, no CORS rule and no build step — it runs from `file://` as happily as from a
+static server (`python3 -m http.server 8080`). Fonts and Tailwind come from CDNs; after a warm
+cache the game still plays offline, just plainer-looking.
+
+Two ways in, both from the same universe:
+
+| Mode | You are | What you pick |
+|---|---|---|
+| **A — Real Player Career** | An existing professional from the 2026/27 pool — 3,125 real players with their real attributes, in a searchable browser, and the same names are your rivals for the Golden Boot. You take over his attributes, age, club, wage and contract situation and play out what is left of his career. | The player |
+| **B — Create Your Own** | A 16–22 year old with a blank name. | Club (any of 192 clubs across 10 divisions), position, nationality, starting OVR budget and difficulty |
+
+Difficulty is not cosmetic: `amateur` / `pro` / `elite` scale how fast manager favour moves, how
+much bigger injuries get, and how much money is on the table.
+
+## The universe lives in `db.js`
+
+`index.html` contains the engine and every screen. `db.js` contains the *world* — and the engine
+reads nothing else about real football. To ship a newer dataset you replace `db.js`; the
+simulation never needs to change. Rows are deliberately compact `|`-delimited strings:
+
+```
+nations:  "CODE|Name|Strength|Confed"              strength 40–92
+clubs:    "Name|SHORT|Strength|capacity|networth"   strength 55–92
+players:  "Name|NAT|POS|OVR|AGE|clubSHORT[|pace,shooting,passing,dribbling,defending,physical]"
+            the attribute tail is optional: with it, that player's six are real; without it,
+            the game models them from OVR + position + a name-seeded variance
+coaches:  "Name|NAT|Tactic|Age|clubSHORT"            …or INTL:<NATCODE> for a national job
+leagues:  { code, name, confed, tv, divs: [[top division rows], [second division rows]],
+            promotion: { auto, playoff, legs, cross, gapRule, final, finalName },
+            relegation: { … } }
+```
+
+Shipped: **26 leagues in 24 countries (574 clubs, 32 divisions), 13,296 real players — every
+outfielder the export lists, each with the six attributes it carried — 99 real coaches with a tactical
+identity, 151 national teams, per-position attribute templates, and a real international calendar.**
+Two more countries (India, Scotland — 23 clubs, 511 players) ship in `packs/` and switch the universe
+up to **28 leagues, 597 clubs, 13,807 players** when you install them. Every club
+except 18 of the smallest has a named squad (median 23 a side, the biggest 54); those 18 are filled by
+the generator, which is what the game has always done. Regens are generated from name parts as seasons
+go by, so new names keep arriving.
+
+A division entry can be the *only* one — 22 of the 28 leagues are. Most of the football world is a single national top flight —
+Allsvenskan, K League 1, the ISL, Liga BBVA MX — and the file models exactly that: `divs: [[…]]`, with
+both `promotion` and `relegation` set to `{ auto: 0, playoff: null }`. That is not "the rule is
+nobody moves"; it is "the rule needs a rung below it, and this universe has no rung below it". The real
+rule is written in the league's own note (Denmark's 11-team split into championship/relegation rounds,
+Scotland's 11-club league and its two-legged play-off with the Championship's runners-up, and so on) so
+a later editor can add the second rung and delete the apology. EFL League One and League Two are the
+one new *ladder*: promotion and relegation between them actually run, while the National League below
+League Two is not modelled, so the file says four go down and the engine rebalances.
+Nothing in the engine is hard-coded to a club or a league, so an out-of-date file cannot silently
+half-work: `node tools/validate-db.js` reads the dataset the way the engine does and fails loudly on
+a broken one — division `size` must equal the number of club rows, codes must be unique, every
+player's club code and position template must exist, every tactic must resolve, play-off seeds must
+sit inside the division, and a World Cup cycle must actually be four years apart.
+
+Rules are read *from* the data, not hard-coded: promotion, relegation, play-off format, number of
+legs, cross-division ties and the "big gap, no play-off" test all come from each league's entry. A
+country with one rung moves nobody and the engine never invents a second division to park people in —
+`hasLadder(lg)` gates every reshuffle, and `divRules` answers "nothing moves" when asked about a rung
+that does not exist.
+So the Championship settles 3rd v 6th and 4th v 5th over two legs with a one-off final at Wembley,
+the Bundesliga plays its `Relegations-Playoff` against 2. Bundesliga's 3rd, Serie B only plays off
+when the gap is under five points, and the Premier League just drops three.
+
+### How the player export got in
+
+`players.csv` at the repo root is the supplied dataset (19,789 men's and women's rows, EA FC 27
+column names). `tools/import-players.js` is the only thing that reads it:
+
+```
+node tools/import-players.js players.csv                      # report only, nothing written
+node tools/import-players.js players.csv --report=map.txt     # every club pairing, one line each
+node tools/import-players.js players.csv --strengths          # db strength vs the imported best XI
+node tools/import-players.js - --squad=14 < export.csv        # stdin, thinner squads
+node tools/import-players.js players.csv --apply              # rewrite db.js
+node tools/import-players.js players.csv --squad=0 --expand --apply   # every outfielder, plus a
+                                                            # whole new country for each league
+                                                            # the file knows and db.js did not
+```
+
+What it decides, and why:
+
+- **Gender is a filter, not a column.** Rows the file marks as women's football are dropped
+  (1,940 of them); a blank gender is kept, because most men's exports have no such column.
+- **A club is matched by alias, then by name inside its own country's leagues.** `TOT → spurs`,
+  `MUN → man utd`, `INT → Lombardia FC` (the export ships some Serie A clubs anonymised). Fuzzy
+  matching across countries is how Barcelona briefly acquired Barcelona SC of Guayaquil, so the
+  matcher will now only accept a name match from a league belonging to that club's country, and
+  reserve/B teams never qualify. 175 of 192 clubs pair up.
+- **OVR is the file's overall, attributes are the file's profile.** Our position weights read
+  3.1 points off the export's overall on average, so each imported six is shifted as a set until
+  the game's own formula reproduces that player's overall. Real strengths and real weaknesses
+  survive; a takeover does not jump the moment the game recalculates.
+- **Full rosters, outfield only.** `--squad=0` takes every man the file lists (min 11, median 23,
+  max 54 a side); `--squad=18` is the thin version. Goalkeepers are not in the file's outfield
+  columns, so a club's keeper is still generated — an honest gap rather than a invented one.
+- **`--expand` builds the countries the file knows and `db.js` did not.** For each competition with at
+  least 10 clubs, clubs are taken straight from the export and given derived columns: `str` from the
+  mean of the best eleven OVRs, capacity and net worth from that strength plus a name-seeded jitter
+  (a 54-rated side is worth €0.1B and plays in front of 12,000, and a generated universe that rounds
+  a small club's wealth to `0.0B` fails its own validator), reputation and TV money from the median
+  OVR. A club the export names but does not list gets a plausible rival in the same city
+  (`MADE_CLUBS`) so a division reaches an even 18 where the file is one or two short.
+- **Age comes from `birthdate`, measured at the snapshot date** (2026-07-01), not from a column that
+  may be missing.
+- **Nations are added as needed.** The file knows 150 countries; the ten leagues knew 70. The
+  importer appends the missing nation rows to `db.js`, with strength from a ladder over that
+  country's best imported player, so `NATION[code]` never misses and a Guinean or Kosovar can be
+  called up.
+- **One name, one player.** Duplicates across clubs are dropped (the search box and a takeover key
+  off the name).
+- **`club.str` is left alone.** Where the imported best XI averages higher than the strength the
+  game set, `--strengths` shows the gap (31 clubs sit more than 5 out, all of them lower-division).
+  Strength also carries balance meaning in the engine — the value, wage and trust models are
+  calibrated on it — so it is a deliberate choice, not an oversight, to leave it and let the report
+  speak.
+
+`--apply` rewrites `players:` and `nations:` and splices whole new league entries (with their clubs)
+into `leagues:`; the existing five leagues' rules are never touched. Re-running it from the same
+`db.js` is idempotent by construction: a club already in the file is matched, not duplicated, and the
+pairing is recorded (`--report=` writes 246 lines of "which export club became which db club", which is
+where a wrong merge shows up). `node tools/validate-db.js` is the check afterwards.
+
+### Leagues you switch on, and packs you download
+
+`db.js` is the base install; **HUB → Universe** (or the line under the create screen) is a country-wise
+switch for everything in it. Switch India off and it is not in the game: no fixture generator, no table,
+no names in the pool, no rows in the save, nothing in the transfer targets. Switch it on and it is
+indistinguishable from a league the file carried. The selection is remembered per device, and a career
+always keeps the league it is playing in — the switch refuses to delete your season under you.
+
+A **data pack** is the same idea with a file attached: a db.js-shaped slice (`leagues`, `players`,
+`coaches`, `nations`) pushed onto `window.FC27_PACKS`. `packs/manifest.js` lists the ones sitting in
+that folder and the panel offers each one as **Download** — a `<script>` tag, so it works from `file://`
+with no server, no fetch and no CORS. **Load a pack file** takes one you got elsewhere; **Export this
+selection** writes your own leagues out as a pack to send to someone. The India + Scotland pair in
+`packs/` was carved out of `db.js` by `node tools/make-pack.js IND SCO --apply`, which refuses to finish
+unless base + pack reproduces the file it started from. Format and the rules a pack has to satisfy:
+`packs/README.md`.
+
+Because the pool is derived from the *active* universe, this is also how the game stays light: a save
+from a career in one country carries one country's players, not thirteen thousand. And because a pack
+keyed to a league `db.js` already has **replaces** it rather than doubling it, a corrected dataset
+arrives as a pack, not as an edit of the universe file.
+
+## What the game actually simulates
+
+**Attributes → OVR → minutes.** Six attributes, each with a mechanical job (pace creates the
+chance, shooting converts it, passing unlocks the press, dribbling wins the one-v-one, defending
+and physical keep you on the pitch). OVR is position-weighted across the nine playable positions
+(ST, LW, RW, CAM, CM, CDM, LB, RB, CB), so the same numbers make a different player at CB and at RW —
+and so a takeover of a real left back is a career, not a crash. Goalkeepers are in the data and are
+deliberately not offered: the game has no keeper mechanics, only a clean sheet to defend.
+
+**Manager trust gates everything.** Trust 0–100 with hysteresis: 75 to walk into the XI, 65 to hold
+it, 40 to make the bench, 35 to fall out of the squad. A reserve gets zero prompts, a sub gets one,
+a starter gets three or four. The match rating moves trust, and a bad week at a big club is a real
+thing that happens to you.
+
+**The match is interactive.** A live ticker with graded outcome bands (clinical / good / error /
+miss) built from a `checkSuccess` roll that knows the attribute, the difficulty, the opponent's
+tier, your fatigue and your last three ratings. Shooting a third time in one game is harder and the
+gaffer notices. Every prompt changes your rating, and your rating changes your life.
+
+**Stamina is a career risk, not a bar.** Fatigue accumulates across consecutive 90s, raises injury
+probability, and degrades every check. A bad tackle can end with anything from a twisted ankle (two
+weeks) to an ACL tear (seven months, permanent damage). While you are hurt the game becomes a
+**medical wing**: each week you can buy a specialist, an elite rehab programme or immediate surgery
+— real money, off the same account as the car — to cut recovery time and shrink the permanent loss.
+
+**Contracts have clauses you negotiate.** Release clause, loyalty bonus, and performance subsidies
+(€/goal, €/clean sheet) that pay on their own. Whether the club accepts is a function of your
+leverage — agent tier, trust, goals, international standing, your role. A release clause also means
+a bid at that number *cannot* be refused, which cuts both ways.
+
+**Transfers, loans, windows.** January and June windows, a pool of realistic suitors, loan moves
+with a wage haircut and guaranteed minutes, free agency when your deal runs out, and a mid-season
+move that keeps your season stats and swaps your table rather than resetting anything.
+
+**Decline and retraining.** From 31 the legs go first. `Retrain` spends three skill points to move
+your game inside your position — trading pace or physical for passing, vision and touch — which is
+how a career gets lengthened. Playstyle is derived, not chosen: Enforcer, Regista, Glass Cutter,
+Target Man, Old Head.
+
+**Nations, and Tournament Mode.** A real ladder (youth → call-up → regular → captain) gated on OVR
+and trust, Nations League as a grouped mini-league inside the autumn windows, qualifying in the
+spring ones, friendlies in the gaps. World Cups every four years, Euros and the equivalent trophy on
+every other continent. In a tournament summer the end of the domestic season hands over into
+**Tournament Mode**: group, then knockout, one match a week, and you go home when you lose.
+
+**Everything else that makes a career.** 38 weighted weekly events (agents, boardrooms, tabloids,
+injury markets, loan recalls, relegation fights, a regens chase, a vet clinic), press conferences
+with answers that land in the feed, away days where you choose how the 40 hours are spent, a
+lifestyle marketplace where cars and property buy popularity and popularity buys sponsors, recovery
+gear that buys energy, a volatile investment portfolio, social posts, yellow cards and bans, a
+season review with awards and the Golden Boot race, trophies and honours, and a Hall of Fame
+epitaph at the end.
+
+**Coach Rebirth.** Retire at 35–38 and the career does not have to stop: your player asset converts
+into a *manager* save on the same universe state — same club, same table, same squad you played in
+with you, a board-confidence number that drops when you lose and ends the save when it hits the
+floor.
+
+## Balance model (the numbers the sim is built on)
+
+```
+OVR      Σ(attr × weight), weights per position (ST .18/.30/.10/.16/.02/.24 … CB .14/.06/.14/.06/.38/.22)
+trust    rating <5.5 −10 · <6.5 −4 · <7.5 +2 · <8.5 +7 · ≥8.5 +13, × difficulty
+success  clamp(38 + (attr−30)·1.02) − difficulty − opponent tier − fatigue/4.4 + form + energy/morale/chemistry
+goal     0.36 · chanceMult · (1+tactic) · 0.86^(shots−2), clamped .12–.58
+xG       clamp((1.44 + ΔSTR·0.045 + home) · tactic nudges, .3, 3.7) per club per match
+value    ((ovr−46)/49)^4.2 × €140M × age × tier × division × contract × form → €75K … €235M
+wages    capped at €900K/wk gross, 45% tax; sponsors pop²×2.6; agents take a cut of wage and fees
+energy   cap 96–114 (physical), −25 per 90, recovery 45+…/wk; fatigue 0–100, drives injuries
+injury   severity weight = fatigue·1.35 + age + challenge, bucketed into 9 injuries (1–28 weeks)
+```
+
+## Testing
+
+No browser is needed to know whether the game is broken. Three node scripts run the *real* code out
+of `index.html` under a DOM stub:
+
+```
+node tools/check.js       syntax of the inline script
+node tools/validate-db.js  the universe file: schema, uniqueness, ranges, play-off rules — add
+                            --with-packs to validate db.js *plus* packs/, which is the universe the
+                            engine actually composes at boot (and the only way to check a carve lost
+                            nothing: 574 base clubs + 23 in the pack, 13,807 players either side)
+node tools/pool-coverage.js  how many real named players each of the 597 clubs carries — the
+                            gap a supplied export is meant to close (tools/import-players.js
+                            turns any FIFA/FBref-shaped CSV into db.js rows, men's only)
+node tools/wiring.js        reads the page as a list of things a thumb can touch: every button,
+                            input and select in index.html must carry a handler or be touched by the
+                            script, and every function named in an inline handler must exist. A
+                            feature can be perfectly implemented and still do nothing, because the
+                            tap was never wired — that is how mode A shipped with a dead button while
+                            every other tool stayed green, since they all call the functions directly
+node tools/takeover.js      walks mode A through the controls themselves — tap #tReal, type in #rQ,
+                            pick a name, tap #cStart — for one player per position plus a random
+                            spread (and `all` for all 579 squads' best man), then plays their first match:
+                            the calendar is checked against the division (a 16-club league is 30 matchdays,
+                            not 38), because "no season around him" must mean a broken promotion, not a
+                            small league the test assumed away: the
+                            shirt, the rating, the imported six, the wage, the fixture list and the
+                            ticker all have to agree, because a takeover that throws half-way through
+                            leaves a body on the HOME tab with no season behind it
+node tools/packs.js         the pack layer end to end, in the real engine: install a pack, toggle a
+                            country off and prove its clubs, players, tables and starter list all went
+                            away and come back identical; play three seasons in a six-club country that
+                            only exists as a pack; feed it five malformed packs and require a sentence
+                            each, not a stack trace; uninstall a pack that is holding up your own league
+                            and require a refusal; then check every file in packs/ through the same
+                            grammar a tap on Download uses
+node tools/make-pack.js     carves countries out of db.js into packs (with the union invariant), and
+                            writes packs/manifest.js — the list the game offers for download
+node tools/simulate.js      plays scripted careers + a 43-config sweep (6 positions × 6 clubs
+                            across 5 countries × 7 seasons, plus one career in each single-rung or
+                            30-club country the expansion added) and checks invariants every week:
+                            table integrity, games played, goals/game, apps, energy, fatigue,
+                            OVR/trust ranges, then a save round-trip
+node tools/uismoke.js       renders every tab and every modal and calls ~50 handlers, so a
+                            click that would throw in a browser throws here instead; it also reads
+                            back the HTML each render wrote and fails on a panel printing
+                            `undefined`/`NaN`, which is how the Career Feed's key-name mismatch —
+                            rows that all read "S1 W0 undefined undefined" — would be caught cold
+node tools/matchflow.js     plays five matches beat by beat and reads the ticker back: the sheet must
+                            say 0-0 at kick-off, move one goal at a time, spread its goals across the
+                            90 rather than dumping them at one end, and the full-time line must agree
+                            with the result that actually happened
+node tools/pageorder.js     walks index.html's <script> tags in document order and executes them the
+                            way an HTML parser would — external files included. It fails if the page
+                            does not load db.js before the engine reads window.FC27_DB. Every other
+                            tool concatenates the two files by hand, so this is the only one that can
+                            catch a page that forgot its own data — which happened: v1.5 split the
+                            world out of index.html and never added the tag back
+```
+
+Current state: **DB valid — 597 clubs, 13,807 players, 0 errors (4 warnings, all of them facts: the
+EFL's four-relegation rebalance, India's 11 clubs, Ireland's 10, and 522 clubs with no coach row)**,
+takeover OK over all 579 squads, wiring OK, page order OK, UI smoke OK, and the sweep clean across
+43 careers — the 36 original configs plus one-rung and 30-club countries (Inter Miami, Boca, both EFL rungs,
+3. Liga, the ISL, Eliteserien) — 13,881 simulated weeks. The stored save is ~290 KB after seven
+seasons against 632 KB of live state, because the pool ships as a delta over `db.js`: an index list of
+who is still in the world, plus only the players whose rating, age or tally moved *and* belong to your
+country. Foreign squads' decorative tallies are dropped on save and re-derived next session — with
+13,807 rows in the pool, writing every apps++ every week was most of the file and none of the game.
+Careers come out looking like careers — a 17-year-old at a Championship club fighting
+to hold a bench spot, a 96-OVR takeover at a top club scoring 28–50 a season across all
+competitions, a centre-half with 15 goals in eight seasons and a knee problem.
+
+## Deliberate choices
+
+- **Real numbers where the export has them.** An imported player keeps his six attributes; a generated
+  one, every goalkeeper and the 18 clubs the export does not cover keep the modelled ones. The two coexist because the only contract the
+  engine has with the data is `Name|NAT|POS|OVR|AGE|club`, and the attribute tail is optional.
+- **A takeover keeps its own numbers.** An imported row's OVR is the rating its six attributes add up
+  to — the file's overall on every row but the one already pinned at 99 — and the veteran/prospect
+  nudge the generator applies is skipped for real data. A wage is set by rating *and* the size of the
+  club, because 13,807 real names turned "everyone over 78 earns the ceiling" into half the database on
+  Haaland money at Como.
+- **Packs are content, never code.** A pack carries no functions, no hooks and no monkey-patching — it
+  is data in the schema `db.js` already documents, and the loader composes it with the file (`overlay`
+  keys by league code, nation code and player name, so a pack replaces rather than duplicates). That is
+  what lets the create screen, the fixture generator, the tables, the transfer market, the national team
+  ladder and the save format treat a downloaded country and a shipped one as the same thing, and why
+  there is nothing to re-learn to write one.
+- **A league with no second rung does not promote anybody.** Twenty-three of the 28 countries in the
+  file are a single top flight, and inventing a division to make promotion work would be the game
+  lying about the world to exercise its own code. Those leagues play a season, win a domestic cup and
+  have a champion; the real promotion rule sits in the league's note until someone adds the rung the
+  rule needs. The engine is written for it: `hasLadder(lg)`, `rivalDiv(div)` returning `-1`, and a
+  `divRules` that answers "nothing moves" instead of throwing.
+- **Awards are scoped to what you can see.** The Golden Boot is the top scorer of *your* division, not
+  of the world: with 28 countries in the file, a global list made the trophy unwinnable for anyone
+  outside the strongest league and cost a full scan of 13,807 rows on every render. Pass `'world'` and
+  you get the old behaviour.
+- **The save carries the career, not the scenery.** Only your country's clubs keep their season tallies
+  between sessions; a foreign league's numbers are re-simulated on load. The alternative was writing
+  thirteen thousand `apps++` updates to localStorage every week for numbers nobody can open a screen
+  to look at.
+- **The men's game only.** No women's competitions and no mixed pools: the universe is the men's
+  divisions, and any supplied dataset is filtered to them on the way in (`tools/import-players.js`
+  drops the rows a file marks as women's and keeps everything else, blank gender included).
+- **Real names by default.** Clubs, players, coaches, leagues and national teams are the real 2026/27
+  set, held in `db.js`. Names you invent are not the product here; the universe is.
+- **Regens.** Retired and near-retired names are replaced over the seasons, so the pool keeps
+  turning while you play: new surnames arrive at 16–18 and old ones fall out of the roster.
+- **Player-side economy.** Value €75K → €235M, wages capped at €900K/week. A career should feel rich,
+  not like owning the league.
+- **One file.** The engine and the UI stay in `index.html`; only the world data is external. Tailwind
+  comes from the CDN. No framework, no bundler, no dependencies to install.
+- **Text is the game.** There are no sprites and no video: the pitch is in the writing, and the
+  interface is a glass night-stadium shell with a bottom tab bar, built to read like a native app on
+  a phone.
