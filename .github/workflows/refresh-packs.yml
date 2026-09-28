@@ -85,7 +85,12 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if git diff --quiet -- packs; then
+          # `git diff` cannot see an untracked file — and the first ever pack for a target is exactly that.
+          # The debut run proved it: self-test, rebuild and gates all passed (so the live article parsed and
+          # cleared the club floor), yet the step reported "nothing to commit" because no TRACKED path had
+          # changed, and the pack it had just written was left in the runner's working copy. Ask git status,
+          # which does include untracked paths.
+          if ! git status --porcelain -- packs | grep -q .; then
             echo 'No pack changed since the last run — the article has not moved. Nothing to commit.'
             exit 0
           fi
